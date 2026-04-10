@@ -26,3 +26,11 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+# Release
+release/
+
+# .NET build output
+module/**/obj/
+module/**/bin/
+module/**/.vs/

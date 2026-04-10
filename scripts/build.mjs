@@ -19,9 +19,6 @@ await build({
   bundle: true,
   format: 'cjs',
   minify: true,
-  // edge-js 包含 native addon (.node 文件)，无法打进 SEA bundle
-  // 必须排除，运行时从 exe 同级目录的 node_modules 加载
-  external: ['edge-js'],
   banner: {
     js: 'const __importMetaUrl = require("url").pathToFileURL(__filename).href;',
   },
@@ -48,3 +45,8 @@ await inject(outExe, 'NODE_SEA_BLOB', blob, {
   sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
 });
 console.log(`Build complete: ${outExe}`);
+
+// Step 5: Copy .NET module to dist/module
+console.log('Copying .NET module...');
+execSync('node scripts/copy-net.mjs', { stdio: 'inherit' });
+

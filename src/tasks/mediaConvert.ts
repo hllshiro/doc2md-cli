@@ -1,84 +1,41 @@
 import { readdir, mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join, extname, basename } from 'node:path'
-import { createRequire } from 'node:module'
+import { spawn } from 'node:child_process'
+import { join, extname, basename, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { existsSync } from 'node:fs'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
 
-// 开发时（ESM）：从当前文件所在目录解析
-// SEA 运行时：__filename === process.execPath，从 exe 同级目录解析
-// 两种情况都能正确找到 node_modules/edge-js
-const _filename =
-  typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url)
-const require = createRequire(_filename)
+// 定位 MetafileConverter.exe：
+// - SEA 运行时：exe 同级的 module/ 目录
+// - dev（ESM tsx）：项目根目录的 module/.../bin/Release/net8.0/
+// - dev（CJS）：同上，通过 __dirname 推导
+const _dir = typeof __dirname !== 'undefined'
+  ? __dirname
+  : dirname(fileURLToPath(import.meta.url))
+
+const exeName = 'MetafileConverter.exe'
+
+// SEA 运行时 __filename === process.execPath，exe 在 dist/ 下，module/ 在同级
+const seaModulePath = resolve(dirname(process.execPath), 'module', exeName)
+// dev 时从源码目录向上找项目根
+const devModulePath = resolve(_dir, '../../module/MetafileConverter/MetafileConverter/bin/Release/net8.0', exeName)
+
+const converterExe = existsSync(seaModulePath) ? seaModulePath : devModulePath
 
 const layer = 'mediaConvert'
 
-// C# 代码：用 System.Drawing 将 EMF/WMF 渲染为 JPG（白色背景）
-const csharpSource = `
-#r "System.Drawing.dll"
-
-using System;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Linq;
-using System.Threading.Tasks;
-
-async (dynamic input) => {
-    string srcPath = (string)input.srcPath;
-    string dstPath = (string)input.dstPath;
-
-    using (var metafile = new Metafile(srcPath)) {
-        var header = metafile.GetMetafileHeader();
-        
-        // 这里的 Bounds 物理尺寸通常比像素更准
-        // 如果 Bounds 拿不到，就用 Size
-        int width = (int)header.Bounds.Width;
-        int height = (int)header.Bounds.Height;
-
-        if (width <= 0 || height <= 0) {
-            width = (int)metafile.Size.Width;
-            height = (int)metafile.Size.Height;
-        }
-
-        // 依然为 0 则兜底
-        if (width <= 0) width = 800;
-        if (height <= 0) height = 600;
-
-        using (var bmp = new Bitmap(width, height)) {
-            using (var g = Graphics.FromImage(bmp)) {
-                g.Clear(Color.White);
-                
-                // 提高矢量图渲染质量
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                
-                g.DrawImage(metafile, 0, 0, width, height);
-            }
-
-            // 获取 JPEG 编码器
-            var encoder = ImageCodecInfo.GetImageEncoders()
-                            .FirstOrDefault(c => c.FormatID == ImageFormat.Jpeg.Guid);
-            
-            var encoderParams = new EncoderParameters(1);
-            encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, 90L);
-
-            bmp.Save(dstPath, encoder, encoderParams);
-        }
-    }
-    return true;
-}
-`
 
 async function convertMetafile(srcPath: string, dstPath: string): Promise<void> {
-  const edge = require('edge-js')
-  const convert = edge.func(csharpSource)
   await new Promise<void>((resolve, reject) => {
-    convert({ srcPath, dstPath }, (err: Error | null) => {
-      if (err) reject(err)
-      else resolve()
+    const proc = spawn(converterExe, [srcPath, dstPath])
+    const stderr: string[] = []
+    proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()))
+    proc.on('close', code => {
+      if (code === 0) resolve()
+      else reject(new Error(`MetafileConverter 退出码 ${code}: ${stderr.join('')}`))
     })
+    proc.on('error', reject)
   })
 }
 

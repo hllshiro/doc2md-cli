@@ -14,9 +14,6 @@ importers:
       '@listr2/prompt-adapter-inquirer':
         specifier: ^2.0.18
         version: 2.0.22(@inquirer/prompts@7.10.1(@types/node@22.19.17))
-      edge-js:
-        specifier: ^25.0.1
-        version: 25.0.1
       listr2:
         specifier: ^8.3.3
         version: 8.3.3
@@ -56,10 +53,6 @@ importers:
         version: 3.2.4(@types/node@22.19.17)(tsx@4.21.0)
 
 packages:
-
-  '@agracio/edge-cs@1.3.7':
-    resolution: {integrity: sha512-sFwGCGmoa9JdODegeDFJL4IH6N8IgDobxbS31BiXaiOdf8bC7EyHigFp0WYRKhIgK72E9nLnNwiRJRMO/AYGdg==}
-    engines: {node: '>= 0.8'}
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -941,10 +934,6 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
-  edge-js@25.0.1:
-    resolution: {integrity: sha512-aadCQs2kbYi2FGT8B10WkitOF65T6/RyeZdR8YkXR9f0HtfUiQV8xy4wk936N1rjQgg3LAickY15Pt/Tr6K3sg==}
-    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
-
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
 
@@ -1197,9 +1186,6 @@ packages:
   mute-stream@2.0.0:
     resolution: {integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==}
     engines: {node: ^18.17.0 || >=20.5.0}
-
-  nan@2.26.2:
-    resolution: {integrity: sha512-0tTvBTYkt3tdGw22nrAy50x7gpbGCCFH3AFcyS5WiUu7Eu4vWlri1woE6qHBSfy11vksDqkiwjOnlR7WV8G1Hw==}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -1515,8 +1501,6 @@ packages:
     engines: {node: '>=18'}
 
 snapshots:
-
-  '@agracio/edge-cs@1.3.7': {}
 
   '@esbuild/aix-ppc64@0.25.12':
     optional: true
@@ -2192,11 +2176,6 @@ snapshots:
 
   deep-is@0.1.4: {}
 
-  edge-js@25.0.1:
-    dependencies:
-      edge-cs: '@agracio/edge-cs@1.3.7'
-      nan: 2.26.2
-
   emoji-regex@10.6.0: {}
 
   emoji-regex@8.0.0: {}
@@ -2484,8 +2463,6 @@ snapshots:
   mute-stream@1.0.0: {}
 
   mute-stream@2.0.0: {}
-
-  nan@2.26.2: {}
 
   nanoid@3.3.11: {}
 

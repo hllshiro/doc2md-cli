@@ -5,8 +5,11 @@
   "type": "module",
   "main": "dist/bundle.cjs",
   "scripts": {
-    "dev": "tsx src/main.ts",
-    "build": "node scripts/build.mjs",
+    "dev": "pnpm build:net && tsx src/main.ts",
+    "build": "pnpm build:net && node scripts/build.mjs",
+    "build:net": "dotnet build module/MetafileConverter/MetafileConverter/MetafileConverter.csproj -c Release",
+    "copy:net": "node scripts/copy-net.mjs",
+    "release": "node scripts/release.mjs",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest --run"
@@ -18,7 +21,6 @@
   "dependencies": {
     "@inquirer/prompts": "^7.5.2",
     "@listr2/prompt-adapter-inquirer": "^2.0.18",
-    "edge-js": "^25.0.1",
     "listr2": "^8.3.3"
   },
   "devDependencies": {
