@@ -1,10 +1,16 @@
 import { readdir, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, extname, basename } from 'node:path'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
 
-const require = createRequire(import.meta.url)
+// 开发时（ESM）：从当前文件所在目录解析
+// SEA 运行时：__filename === process.execPath，从 exe 同级目录解析
+// 两种情况都能正确找到 node_modules/edge-js
+const _filename =
+  typeof __filename !== 'undefined' ? __filename : fileURLToPath(import.meta.url)
+const require = createRequire(_filename)
 
 const layer = 'mediaConvert'
 

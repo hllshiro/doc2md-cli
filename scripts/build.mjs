@@ -19,8 +19,10 @@ await build({
   bundle: true,
   format: 'cjs',
   minify: true,
+  // edge-js 包含 native addon (.node 文件)，无法打进 SEA bundle
+  // 必须排除，运行时从 exe 同级目录的 node_modules 加载
+  external: ['edge-js'],
   banner: {
-    // 在 CJS bundle 顶部注入 import.meta.url 的 polyfill
     js: 'const __importMetaUrl = require("url").pathToFileURL(__filename).href;',
   },
   define: {
