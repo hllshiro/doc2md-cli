@@ -19,6 +19,13 @@ await build({
   bundle: true,
   format: 'cjs',
   minify: true,
+  banner: {
+    // 在 CJS bundle 顶部注入 import.meta.url 的 polyfill
+    js: 'const __importMetaUrl = require("url").pathToFileURL(__filename).href;',
+  },
+  define: {
+    'import.meta.url': '__importMetaUrl',
+  },
 });
 console.log('Bundle complete: dist/bundle.cjs');
 

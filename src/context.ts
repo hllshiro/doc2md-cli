@@ -1,14 +1,20 @@
+export interface DocxConvertContext {
+  outFilename: string
+  outputPath: string
+  mediaPath: string
+}
+
 export interface AppContext {
   /** 用户输入的 .docx 文件绝对路径 */
-  docxPath: string;
+  inputPath: string
+  /** 总输出目录，与输入在同一级目录下的out目录 */
+  outputPath: string
   /** 解析后的 pandoc 可执行文件路径 */
-  pandocPath: string;
-  /** 传递给 pandoc 的额外参数（可选） */
-  pandocArgs?: string[];
-  /** 转换输出的 Markdown 文件路径（可选，由 Convert_Task 写入） */
-  outputPath?: string;
+  pandocExec: string
+  /** docxConvert 上下文 */
+  docxConvertContext?: DocxConvertContext
 }
 
 export function createContext(): AppContext {
-  return { docxPath: '', pandocPath: '' };
+  return { inputPath: '', outputPath: '', pandocExec: 'pandoc' }
 }
