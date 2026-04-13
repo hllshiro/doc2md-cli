@@ -49,7 +49,7 @@ export const docxConvertTask: ListrTask<AppContext> = {
 
       proc.on('close', (code) => {
         if (code === 0) {
-          ctx.docxConvertContext = {
+          ctx.lastContext = {
             outFilename,
             outputPath,
             mediaPath,

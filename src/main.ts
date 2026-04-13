@@ -4,6 +4,7 @@ import { docxInputTask } from './tasks/docxInput.js'
 import { pandocCheckTask } from './tasks/pandocCheck.js'
 import { docxConvertTask } from './tasks/docxConvert.js'
 import { mediaConvertTask } from './tasks/mediaConvert.js'
+import { mdCleanupTask } from './tasks/mdCleanup.js'
 
 const ctx = createContext()
 const runner = createRunner(ctx)
@@ -12,6 +13,7 @@ runner.add(docxInputTask)
 runner.add(pandocCheckTask)
 runner.add(docxConvertTask)
 runner.add(mediaConvertTask)
+runner.add(mdCleanupTask)
 
 async function pause(): Promise<void> {
   process.stdout.write('\n按任意键退出...')

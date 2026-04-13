@@ -1,4 +1,4 @@
-export interface DocxConvertContext {
+export interface OutputContext {
   outFilename: string
   outputPath: string
   mediaPath: string
@@ -11,8 +11,8 @@ export interface AppContext {
   outputPath: string
   /** 解析后的 pandoc 可执行文件路径 */
   pandocExec: string
-  /** docxConvert 上下文 */
-  docxConvertContext?: DocxConvertContext
+  /** lastContext 上下文 */
+  lastContext?: OutputContext
 }
 
 export function createContext(): AppContext {

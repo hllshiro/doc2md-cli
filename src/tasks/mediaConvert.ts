@@ -44,7 +44,7 @@ function convertImagesTask(ctx: AppContext): ListrTask<AppContext> {
   return {
     title: '渲染 EMF/WMF 为 JPG',
     task: async (_, task): Promise<void> => {
-      const srcMedia = ctx.docxConvertContext!.mediaPath
+      const srcMedia = ctx.lastContext!.mediaPath
       const outMedia = join(ctx.outputPath, layer, 'media')
       await mkdir(outMedia, { recursive: true })
 
@@ -76,7 +76,7 @@ function patchMarkdownTask(ctx: AppContext): ListrTask<AppContext> {
   return {
     title: '更新 Markdown 中的图片路径',
     task: async (_, task): Promise<void> => {
-      const { outFilename, outputPath: srcMdPath } = ctx.docxConvertContext!
+      const { outFilename, outputPath: srcMdPath } = ctx.lastContext!
       const outdir = join(ctx.outputPath, layer)
       const dstMdPath = join(outdir, outFilename)
 
