@@ -2,6 +2,7 @@ import { input } from '@inquirer/prompts'
 import { ListrInquirerPromptAdapter } from '@listr2/prompt-adapter-inquirer'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
+import { loadCache, saveCache } from '../utils.js'
 
 import { access } from 'fs/promises'
 import { dirname, isAbsolute, join } from 'path'
@@ -26,16 +27,18 @@ export async function validateDocxPath(value: string): Promise<string | undefine
 export const docxInputTask: ListrTask<AppContext> = {
   title: '输入文档路径',
   task: async (ctx, task) => {
+    const cache = await loadCache()
     const docxPath = await task.prompt(ListrInquirerPromptAdapter).run(input, {
       message:
         '\x1b[33m⚠ 提示：请确保文档中所有公式已转换为 Office Math 格式\x1b[0m\n' +
         '请输入 .docx 文件路径：\n',
+      default: cache.docxInputPath,
       validate: async (value: string) => {
         const error = await validateDocxPath(value)
         return error ?? true
       },
     })
-
+    await saveCache({ docxInputPath: docxPath })
 
     if (isAbsolute(docxPath)) {
       ctx.inputPath = docxPath
