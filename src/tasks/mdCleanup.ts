@@ -39,7 +39,7 @@ const RE_CAPTION_TEXT = /<p>([^<]*)<\/p>/
  * Pure function — no I/O.
  */
 export function cleanMarkdown(source: string, warn: (msg: string) => void): string {
-  const lines = source.split('\n')
+  const lines = source.split(/\r?\n/)
   const out: string[] = []
 
   let state: State = State.NORMAL
@@ -200,8 +200,7 @@ export const mdCleanupTask: ListrTask<AppContext> = {
   task: (ctx, task) =>
     new Promise<void>(async (resolve, reject) => {
         
-      const { outFilename } = ctx.lastContext!
-      const srcPath = join(ctx.outputPath, 'mediaConvert', outFilename)
+      const { outFilename, outputPath: srcPath, mediaPath: srcMedia } = ctx.lastContext!
       const outdir = join(ctx.outputPath, layer)
       const outPath = join(outdir, outFilename)
 
@@ -222,7 +221,11 @@ export const mdCleanupTask: ListrTask<AppContext> = {
         task.output = `写出 ${outPath}`
         await writeFile(outPath, cleaned, 'utf-8')
 
-        ctx.mdCleanupContext = { outputPath: outPath }
+        ctx.lastContext = {
+          outFilename,
+          outputPath: outPath,
+          mediaPath: srcMedia,
+        }
         resolve()
       } catch (err) {
         reject(err)

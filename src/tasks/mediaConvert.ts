@@ -91,6 +91,12 @@ function patchMarkdownTask(ctx: AppContext): ListrTask<AppContext> {
 
       await writeFile(dstMdPath, content, 'utf-8')
       task.output = `已写出 ${dstMdPath}`
+
+      ctx.lastContext = {
+        outFilename,
+        outputPath: dstMdPath,
+        mediaPath: join(outdir, 'media'),
+      }
     },
   }
 }
