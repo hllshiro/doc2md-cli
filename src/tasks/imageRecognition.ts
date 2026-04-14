@@ -406,12 +406,12 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
         default: cache.aiModel && models.includes(cache.aiModel) ? cache.aiModel : undefined,
       })
 
-      await saveCache({ aiBaseURL, aiApiKey, aiModel })
-
       aiEnableValidation = await task.prompt(ListrInquirerPromptAdapter).run(confirm, {
         message: '是否开启识别结果校验？（开启后会对每张图片的识别结果进行二次验证）',
-        default: false,
+        default: cache.aiEnableValidation ?? false,
       })
+
+      await saveCache({ aiBaseURL, aiApiKey, aiModel, aiEnableValidation })
 
       task.output = `已选择模型: ${aiModel}` + (aiEnableValidation ? '（已开启校验）' : '')
     },
