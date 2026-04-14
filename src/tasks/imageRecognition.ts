@@ -3,7 +3,7 @@ import { access } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { confirm, input, select } from '@inquirer/prompts'
 import { ListrInquirerPromptAdapter } from '@listr2/prompt-adapter-inquirer'
-import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { generateText } from 'ai'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
@@ -108,7 +108,7 @@ interface RecognitionResult {
 }
 
 async function recognizeImage(
-  provider: ReturnType<typeof createOpenAI>,
+  provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
   imageBuffer: Buffer,
   mimeType: string
@@ -187,7 +187,7 @@ interface ValidationResult {
 }
 
 async function validateRecognition(
-  provider: ReturnType<typeof createOpenAI>,
+  provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
   imageBuffer: Buffer,
   mimeType: string,
@@ -242,7 +242,7 @@ async function validateRecognition(
 }
 
 async function recognizeWithValidation(
-  provider: ReturnType<typeof createOpenAI>,
+  provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
   imageBuffer: Buffer,
   mimeType: string,
@@ -267,7 +267,7 @@ async function recognizeWithValidation(
 }
 
 async function recognizeImageWithPrompt(
-  provider: ReturnType<typeof createOpenAI>,
+  provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
   imageBuffer: Buffer,
   mimeType: string,
@@ -467,7 +467,11 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
         return
       }
 
-      const provider = createOpenAI({ baseURL: aiBaseURL, apiKey: aiApiKey })
+      const provider = createOpenAICompatible({
+        name: 'ai-vision-provider',
+        baseURL: aiBaseURL,
+        apiKey: aiApiKey,
+      })
       logger.debug(`AI 提供者已创建，接口: ${aiBaseURL}`, '识别并替换图片内容')
 
       // Map: fullMatch → replacement string

@@ -3,24 +3,6 @@ import { join } from 'node:path'
 import { mkdirSync, createWriteStream } from 'node:fs'
 import { existsSync } from 'node:fs'
 
-// 颜色代码
-const COLORS = {
-  reset: '\x1b[0m',
-  dim: '\x1b[2m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m',
-}
-
-const LEVEL_COLORS: Record<string, string> = {
-  DEBUG: COLORS.dim,
-  INFO: COLORS.green,
-  WARN: COLORS.yellow,
-  ERROR: COLORS.red,
-}
-
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 
 class ProcessLogger {
@@ -91,13 +73,6 @@ class ProcessLogger {
     // 写入文件（完整格式，无颜色）
     const fileLine = `[${this.formatTimeFull()}] ${level}: ${taskPrefix}${msg}`
     this.writeToFile(fileLine)
-
-    // 控制台输出（带颜色，仅 INFO 及以上）
-    if (level !== 'DEBUG') {
-      const color = LEVEL_COLORS[level] || COLORS.reset
-      const consoleLine = `${COLORS.dim}[${this.formatTime()}]${COLORS.reset} ${color}${level.padEnd(5)}${COLORS.reset} ${COLORS.cyan}${taskPrefix}${COLORS.reset}${msg}`
-      console.log(consoleLine)
-    }
   }
 
   getLogPath(): string {
