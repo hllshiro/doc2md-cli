@@ -19,6 +19,9 @@ const CACHE_FILE = join(CACHE_DIR, 'cache.json')
 
 export type InputCache = {
   docxInputPath?: string
+  aiBaseURL?: string
+  aiApiKey?: string
+  aiModel?: string
 }
 
 /**
