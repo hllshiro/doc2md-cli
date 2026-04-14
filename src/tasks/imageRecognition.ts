@@ -8,6 +8,7 @@ import { generateText } from 'ai'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
 import { loadCache, saveCache } from '../utils.js'
+import { logger } from '../logger.js'
 
 // Module-level AI configuration (shared between subtasks)
 let aiBaseURL = ''
@@ -114,6 +115,8 @@ async function recognizeImage(
 ): Promise<RecognitionResult> {
   const result = await generateText({
     model: provider(modelId),
+    temperature: 0.5,
+    topP: 0.95,
     messages: [
       {
         role: 'user',
@@ -194,6 +197,8 @@ async function validateRecognition(
 
   const result = await generateText({
     model: provider(modelId),
+    temperature: 0.5,
+    topP: 0.95,
     messages: [
       {
         role: 'user',
@@ -270,6 +275,8 @@ async function recognizeImageWithPrompt(
 ): Promise<RecognitionResult> {
   const result = await generateText({
     model: provider(modelId),
+    temperature: 0.5,
+    topP: 0.95,
     messages: [
       {
         role: 'user',
@@ -365,7 +372,9 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
   return {
     title: '配置 AI 视觉识别接口',
     task: async (_ctx, task): Promise<void> => {
+      logger.info('开始配置 AI 视觉识别接口', '配置 AI 视觉识别接口')
       const cache = await loadCache()
+      logger.debug('已加载缓存', '配置 AI 视觉识别接口')
 
       aiBaseURL = await task.prompt(ListrInquirerPromptAdapter).run(input, {
         message: '请输入 AI 视觉识别接口地址：',
@@ -375,25 +384,34 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
           return true
         },
       })
+      logger.info(`AI 接口地址: ${aiBaseURL}`, '配置 AI 视觉识别接口')
 
       aiApiKey = await task.prompt(ListrInquirerPromptAdapter).run(input, {
         message: '请输入 API Key（无需密钥可留空）：',
         default: cache.aiApiKey ?? '',
       })
+      logger.debug(`API Key 已${aiApiKey ? '设置' : '留空'}`, '配置 AI 视觉识别接口')
 
       task.output = '正在获取模型列表...'
+      logger.info('正在获取模型列表...', '配置 AI 视觉识别接口')
       let models: string[] = []
+      let retryCount = 0
       while (true) {
         try {
           models = await fetchModels(aiBaseURL)
+          logger.info(`成功获取 ${models.length} 个模型`, '配置 AI 视觉识别接口')
           break
         } catch (err) {
-          task.output = `连接失败: ${err instanceof Error ? err.message : String(err)}`
+          retryCount++
+          const errMsg = err instanceof Error ? err.message : String(err)
+          task.output = `连接失败: ${errMsg}`
+          logger.warn(`第 ${retryCount} 次连接失败: ${errMsg}`, '配置 AI 视觉识别接口')
           const retry = await task.prompt(ListrInquirerPromptAdapter).run(confirm, {
             message: '无法连接到 AI 接口，是否重试？',
             default: true,
           })
           if (!retry) {
+            logger.error('用户取消连接 AI 接口', '配置 AI 视觉识别接口')
             throw new Error('用户取消连接 AI 接口')
           }
           task.output = '正在重试获取模型列表...'
@@ -412,6 +430,10 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
       })
 
       await saveCache({ aiBaseURL, aiApiKey, aiModel, aiEnableValidation })
+      logger.info(
+        `已选择模型: ${aiModel}${aiEnableValidation ? '（已开启校验）' : ''}`,
+        '配置 AI 视觉识别接口'
+      )
 
       task.output = `已选择模型: ${aiModel}` + (aiEnableValidation ? '（已开启校验）' : '')
     },
@@ -427,13 +449,18 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       const outdir = join(ctx.outputPath, layer)
       const outPath = join(outdir, outFilename)
 
+      logger.info(`开始处理图片识别: ${outFilename}`, '识别并替换图片内容')
       task.output = '读取 Markdown 文件'
       const source = await readFile(srcPath, 'utf-8')
       const lines = source.split(/\r?\n/)
+      logger.debug(`读取 Markdown 文件，共 ${lines.length} 行`, '识别并替换图片内容')
 
       const matches = collectImageMatches(lines)
+      logger.info(`发现 ${matches.length} 个图片引用`, '识别并替换图片内容')
+
       if (matches.length === 0) {
         task.output = '未找到图片引用，跳过'
+        logger.info('没有图片需要处理，直接复制文件', '识别并替换图片内容')
         await mkdir(outdir, { recursive: true })
         await writeFile(outPath, source, 'utf-8')
         ctx.lastContext = { outFilename, outputPath: outPath, mediaPath }
@@ -441,38 +468,53 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       }
 
       const provider = createOpenAI({ baseURL: aiBaseURL, apiKey: aiApiKey })
+      logger.debug(`AI 提供者已创建，接口: ${aiBaseURL}`, '识别并替换图片内容')
+
       // Map: fullMatch → replacement string
       const replacements = new Map<string, { replacement: string; isBlock: boolean }>()
+      let successCount = 0
+      let failCount = 0
 
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i]
         const imgName = basename(match.src)
         task.output = `识别图片 (${i + 1}/${matches.length}): ${imgName}`
+        logger.info(`处理图片 (${i + 1}/${matches.length}): ${imgName}`, '识别并替换图片内容')
 
         const imgPath = await resolveImagePath(match.src, mdDir, mediaPath)
         if (!imgPath) {
           task.output = `警告: 图片文件不存在: ${match.src}`
+          logger.warn(`图片文件不存在: ${match.src}`, '识别并替换图片内容')
+          failCount++
           continue
         }
+        logger.debug(`图片路径解析: ${imgPath}`, '识别并替换图片内容')
 
         let imageBuffer: Buffer
         try {
           imageBuffer = await readFile(imgPath)
+          logger.debug(`读取图片成功，大小: ${imageBuffer.length} bytes`, '识别并替换图片内容')
         } catch {
           task.output = `警告: 无法读取图片文件: ${imgPath}`
+          logger.warn(`无法读取图片文件: ${imgPath}`, '识别并替换图片内容')
+          failCount++
           continue
         }
 
         if (imageBuffer.length === 0) {
           task.output = `警告: 图片文件为空: ${imgPath}`
+          logger.warn(`图片文件为空: ${imgPath}`, '识别并替换图片内容')
+          failCount++
           continue
         }
 
         const mimeType = getMimeType(extname(imgPath))
+        logger.debug(`图片 MIME 类型: ${mimeType}`, '识别并替换图片内容')
 
         let result: RecognitionResult
         try {
           if (aiEnableValidation) {
+            logger.info(`开始识别并校验 (${imgName})`, '识别并替换图片内容')
             result = await recognizeWithValidation(
               provider,
               aiModel,
@@ -480,21 +522,36 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
               mimeType,
               (msg) => {
                 task.output = `(${i + 1}/${matches.length}) ${imgName}: ${msg}`
+                logger.debug(`${imgName}: ${msg}`, '识别并替换图片内容')
               }
             )
           } else {
+            logger.info(`开始识别 (${imgName})`, '识别并替换图片内容')
             result = await recognizeImage(provider, aiModel, imageBuffer, mimeType)
           }
+          logger.info(`识别成功 (${imgName}): isFormula=${result.isFormula}`, '识别并替换图片内容')
+          successCount++
         } catch (err) {
-          task.output = `警告: AI 识别失败 (${imgName}): ${err instanceof Error ? err.message : String(err)}`
+          const errMsg = err instanceof Error ? err.message : String(err)
+          task.output = `警告: AI 识别失败 (${imgName}): ${errMsg}`
+          logger.error(`AI 识别失败 (${imgName}): ${errMsg}`, '识别并替换图片内容')
+          failCount++
           continue
         }
 
         let replacement: string
         if (result.isFormula) {
           replacement = match.isBlock ? `$$\n${result.content}\n$$` : `$${result.content}$`
+          logger.debug(
+            `公式替换 (${imgName}): ${replacement.substring(0, 50)}...`,
+            '识别并替换图片内容'
+          )
         } else {
           replacement = result.content
+          logger.debug(
+            `描述替换 (${imgName}): ${replacement.substring(0, 50)}...`,
+            '识别并替换图片内容'
+          )
         }
 
         replacements.set(match.fullMatch, { replacement, isBlock: match.isBlock })
@@ -502,6 +559,7 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
 
       // Apply replacements
       task.output = '应用替换结果'
+      logger.info(`应用替换结果，成功: ${successCount}, 失败: ${failCount}`, '识别并替换图片内容')
       const outLines: string[] = []
       for (const line of lines) {
         let processed = line
@@ -533,9 +591,14 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       task.output = '写出结果文件'
       await mkdir(outdir, { recursive: true })
       await writeFile(outPath, outLines.join('\n'), 'utf-8')
+      logger.info(`结果文件已写出: ${outPath}`, '识别并替换图片内容')
 
       ctx.lastContext = { outFilename, outputPath: outPath, mediaPath }
       task.output = `完成，共处理 ${replacements.size}/${matches.length} 张图片`
+      logger.info(
+        `图片处理完成，共处理 ${replacements.size}/${matches.length} 张图片`,
+        '识别并替换图片内容'
+      )
     },
   }
 }

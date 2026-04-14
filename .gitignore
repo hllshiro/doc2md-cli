@@ -34,3 +34,5 @@ release/
 module/**/obj/
 module/**/bin/
 module/**/.vs/
+
+*.docx

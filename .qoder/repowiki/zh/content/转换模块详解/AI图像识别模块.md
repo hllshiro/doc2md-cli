@@ -14,8 +14,6 @@
 - [mediaConvert.ts](file://src/tasks/mediaConvert.ts)
 - [mdCleanup.ts](file://src/tasks/mdCleanup.ts)
 - [pandocCheck.ts](file://src/tasks/pandocCheck.ts)
-- [test.md（图像识别输出）](file://out/imageRecognition/test.md)
-- [test.md（清理输出）](file://out/mdCleanup/test.md)
 </cite>
 
 ## 更新摘要

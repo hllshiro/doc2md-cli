@@ -1,5 +1,6 @@
 import { createContext } from './context.js'
 import { createRunner } from './runner.js'
+import { logger } from './logger.js'
 import { docxInputTask } from './tasks/docxInput.js'
 import { pandocCheckTask } from './tasks/pandocCheck.js'
 import { docxConvertTask } from './tasks/docxConvert.js'
@@ -30,13 +31,26 @@ async function pause(): Promise<void> {
   )
 }
 
-runner.run().catch(async (err) => {
-  const msg = err instanceof Error ? err.message : String(err)
-  // 用户 CTRL+C 时 inquirer 抛出 ExitPromptError，直接退出不等待
-  if (err instanceof Error && err.name === 'ExitPromptError') {
-    process.exit(130)
-  }
-  console.error(msg)
-  await pause()
-  process.exit(1)
-})
+runner
+  .run()
+  .then(async () => {
+    // 输出日志文件路径
+    const logPath = logger.getLogPath()
+    console.log(`\n✓ 执行完成，详细日志已保存至: ${logPath}`)
+    await pause()
+    process.exit(0)
+  })
+  .catch(async (err) => {
+    const msg = err instanceof Error ? err.message : String(err)
+    // 用户 CTRL+C 时 inquirer 抛出 ExitPromptError，直接退出不等待
+    if (err instanceof Error && err.name === 'ExitPromptError') {
+      process.exit(130)
+    }
+    // 记录错误
+    logger.error(`执行失败: ${msg}`)
+    const logPath = logger.getLogPath()
+    console.error(msg)
+    console.error(`\n详细日志已保存至: ${logPath}`)
+    await pause()
+    process.exit(1)
+  })
