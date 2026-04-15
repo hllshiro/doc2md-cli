@@ -1,4 +1,4 @@
-import { readdir, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readdir, mkdir, readFile, writeFile, copyFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { join, extname, basename, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -53,7 +53,7 @@ async function convertMetafile(srcPath: string, dstPath: string): Promise<void> 
   })
 }
 
-/** 子任务1：将 mediaPath 下的 EMF/WMF 渲染为 JPG，输出到 outdir/media */
+/** 子任务1：将 mediaPath 下的 EMF/WMF 渲染为 JPG，输出到 outdir/media，同时复制其他图片文件 */
 function convertImagesTask(ctx: AppContext): ListrTask<AppContext> {
   return {
     title: '渲染 EMF/WMF 为 JPG',
@@ -66,30 +66,62 @@ function convertImagesTask(ctx: AppContext): ListrTask<AppContext> {
       const files = await readdir(srcMedia)
       logger.debug(`扫描到的文件: ${files.join(', ')}`, '渲染 EMF/WMF 为 JPG')
 
-      const targets = files.filter((f) => {
+      const emfWmfTargets = files.filter((f) => {
         const ext = extname(f).toLowerCase()
         return ext === '.emf' || ext === '.wmf'
       })
 
-      logger.info(`发现 EMF/WMF 文件，数量: ${targets.length}`, '渲染 EMF/WMF 为 JPG')
+      const otherImageFiles = files.filter((f) => {
+        const ext = extname(f).toLowerCase()
+        return ext !== '.emf' && ext !== '.wmf'
+      })
 
-      if (targets.length === 0) {
-        task.output = '没有找到 EMF/WMF 文件，跳过'
-        logger.info('没有需要转换的矢量图文件', '渲染 EMF/WMF 为 JPG')
-        return
+      logger.info(
+        `发现 EMF/WMF 文件，数量: ${emfWmfTargets.length}，其他图片文件: ${otherImageFiles.length}`,
+        '渲染 EMF/WMF 为 JPG'
+      )
+
+      // 转换 EMF/WMF 文件
+      if (emfWmfTargets.length > 0) {
+        for (let i = 0; i < emfWmfTargets.length; i++) {
+          const file = emfWmfTargets[i]
+          const src = join(srcMedia, file)
+          const dst = join(outMedia, basename(file, extname(file)) + '.jpg')
+          task.output = `转换 ${file} (${i + 1}/${emfWmfTargets.length})`
+          logger.info(
+            `转换矢量图 (${i + 1}/${emfWmfTargets.length}): ${file}`,
+            '渲染 EMF/WMF 为 JPG'
+          )
+          await convertMetafile(src, dst)
+        }
       }
 
-      for (let i = 0; i < targets.length; i++) {
-        const file = targets[i]
-        const src = join(srcMedia, file)
-        const dst = join(outMedia, basename(file, extname(file)) + '.jpg')
-        task.output = `转换 ${file} (${i + 1}/${targets.length})`
-        logger.info(`转换矢量图 (${i + 1}/${targets.length}): ${file}`, '渲染 EMF/WMF 为 JPG')
-        await convertMetafile(src, dst)
+      // 复制其他图片文件（非 EMF/WMF）
+      if (otherImageFiles.length > 0) {
+        for (let i = 0; i < otherImageFiles.length; i++) {
+          const file = otherImageFiles[i]
+          const src = join(srcMedia, file)
+          const dst = join(outMedia, file)
+          task.output = `复制 ${file} (${i + 1}/${otherImageFiles.length})`
+          logger.info(
+            `复制图片文件 (${i + 1}/${otherImageFiles.length}): ${file}`,
+            '渲染 EMF/WMF 为 JPG'
+          )
+          await copyFile(src, dst)
+        }
       }
 
-      task.output = `完成，共转换 ${targets.length} 个文件`
-      logger.info(`矢量图渲染完成，共转换 ${targets.length} 个文件`, '渲染 EMF/WMF 为 JPG')
+      const totalFiles = emfWmfTargets.length + otherImageFiles.length
+      if (totalFiles === 0) {
+        task.output = '没有找到图片文件，跳过'
+        logger.info('没有需要处理的图片文件', '渲染 EMF/WMF 为 JPG')
+      } else {
+        task.output = `完成，共转换 ${emfWmfTargets.length} 个矢量图，复制 ${otherImageFiles.length} 个其他图片`
+        logger.info(
+          `矢量图渲染完成，共转换 ${emfWmfTargets.length} 个文件，复制 ${otherImageFiles.length} 个其他图片`,
+          '渲染 EMF/WMF 为 JPG'
+        )
+      }
     },
   }
 }
