@@ -23,6 +23,7 @@ export type InputCache = {
   aiApiKey?: string
   aiModel?: string
   aiEnableValidation?: boolean
+  aiTimeout?: number
 }
 
 /**

@@ -15,6 +15,7 @@ let aiBaseURL = ''
 let aiApiKey = ''
 let aiModel = ''
 let aiEnableValidation = false
+let aiTimeout = 0
 
 const layer = 'imageRecognition'
 
@@ -107,30 +108,67 @@ interface RecognitionResult {
   content: string
 }
 
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TimeoutError'
+  }
+}
+
+/**
+ * 执行带超时控制的任务，超时后通过 AbortController 取消底层请求
+ */
+async function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+  operation: string
+): Promise<T> {
+  if (timeoutMs <= 0) {
+    return fn(new AbortController().signal)
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort(new TimeoutError(`${operation} 超时（${timeoutMs}ms）`))
+  }, timeoutMs)
+
+  try {
+    return await fn(controller.signal)
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 async function recognizeImage(
   provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
   imageBuffer: Buffer,
   mimeType: string
 ): Promise<RecognitionResult> {
-  const result = await generateText({
-    model: provider(modelId),
-    temperature: 0.5,
-    topP: 0.95,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: VISION_PROMPT },
+  const result = await withTimeout(
+    (signal) =>
+      generateText({
+        model: provider(modelId),
+        temperature: 0.5,
+        topP: 0.95,
+        abortSignal: signal,
+        messages: [
           {
-            type: 'image',
-            image: imageBuffer,
-            mediaType: mimeType,
+            role: 'user',
+            content: [
+              { type: 'text', text: VISION_PROMPT },
+              {
+                type: 'image',
+                image: imageBuffer,
+                mediaType: mimeType,
+              },
+            ],
           },
         ],
-      },
-    ],
-  })
+      }),
+    aiTimeout * 1000,
+    '图片识别'
+  )
 
   const text = result.text
   // Extract JSON from the response (handles models that prepend/append extra text)
@@ -195,20 +233,26 @@ async function validateRecognition(
 ): Promise<ValidationResult> {
   const prompt = VALIDATION_PROMPT.replace('{RESULT}', JSON.stringify(recognition))
 
-  const result = await generateText({
-    model: provider(modelId),
-    temperature: 0.5,
-    topP: 0.95,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image', image: imageBuffer, mediaType: mimeType },
+  const result = await withTimeout(
+    (signal) =>
+      generateText({
+        model: provider(modelId),
+        temperature: 0.5,
+        topP: 0.95,
+        abortSignal: signal,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image', image: imageBuffer, mediaType: mimeType },
+            ],
+          },
         ],
-      },
-    ],
-  })
+      }),
+    aiTimeout * 1000,
+    '识别结果校验'
+  )
 
   const text = result.text
   const jsonMatch = /\{[\s\S]*\}/.exec(text)
@@ -252,15 +296,25 @@ async function recognizeWithValidation(
 
   for (let attempt = 1; attempt < MAX_RECOGNITION_ATTEMPTS; attempt++) {
     onStatus(`校验识别结果 (第${attempt}次)...`)
-    const validation = await validateRecognition(provider, modelId, imageBuffer, mimeType, result)
+    try {
+      const validation = await validateRecognition(provider, modelId, imageBuffer, mimeType, result)
 
-    if (validation.isCorrect) {
-      return result
+      if (validation.isCorrect) {
+        return result
+      }
+
+      onStatus(`校验未通过: ${validation.reason}，重新识别 (第${attempt + 1}次)...`)
+      const retryPrompt = buildRetryPrompt(validation.reason)
+      result = await recognizeImageWithPrompt(provider, modelId, imageBuffer, mimeType, retryPrompt)
+    } catch (err) {
+      // 如果是超时错误，停止重试，直接返回当前结果
+      if (err instanceof TimeoutError) {
+        onStatus(`校验超时，停止重试`)
+        logger.warn('识别校验超时，停止重试', 'recognizeWithValidation')
+        return result
+      }
+      throw err
     }
-
-    onStatus(`校验未通过: ${validation.reason}，重新识别 (第${attempt + 1}次)...`)
-    const retryPrompt = buildRetryPrompt(validation.reason)
-    result = await recognizeImageWithPrompt(provider, modelId, imageBuffer, mimeType, retryPrompt)
   }
 
   return result
@@ -273,20 +327,26 @@ async function recognizeImageWithPrompt(
   mimeType: string,
   prompt: string
 ): Promise<RecognitionResult> {
-  const result = await generateText({
-    model: provider(modelId),
-    temperature: 0.5,
-    topP: 0.95,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image', image: imageBuffer, mediaType: mimeType },
+  const result = await withTimeout(
+    (signal) =>
+      generateText({
+        model: provider(modelId),
+        temperature: 0.5,
+        topP: 0.95,
+        abortSignal: signal,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image', image: imageBuffer, mediaType: mimeType },
+            ],
+          },
         ],
-      },
-    ],
-  })
+      }),
+    aiTimeout * 1000,
+    '图片识别重试'
+  )
 
   const text = result.text
   const jsonMatch = /\{[\s\S]*\}/.exec(text)
@@ -429,7 +489,20 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
         default: cache.aiEnableValidation ?? false,
       })
 
-      await saveCache({ aiBaseURL, aiApiKey, aiModel, aiEnableValidation })
+      const timeoutInput = await task.prompt(ListrInquirerPromptAdapter).run(input, {
+        message: '请输入模型识别超时时间（秒，0表示无限制）：',
+        default: String(cache.aiTimeout ?? 0),
+        validate: (value: string) => {
+          const num = Number(value)
+          if (isNaN(num) || num < 0 || !Number.isInteger(num)) {
+            return '请输入有效的非负整数'
+          }
+          return true
+        },
+      })
+      aiTimeout = Number(timeoutInput)
+
+      await saveCache({ aiBaseURL, aiApiKey, aiModel, aiEnableValidation, aiTimeout })
       logger.info(
         `已选择模型: ${aiModel}${aiEnableValidation ? '（已开启校验）' : ''}`,
         '配置 AI 视觉识别接口'
