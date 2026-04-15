@@ -139,6 +139,31 @@ async function withTimeout<T>(
   }
 }
 
+function parseRecognitionResponse(text: string): RecognitionResult {
+  const jsonMatch = /\{[\s\S]*\}/.exec(text)
+  if (!jsonMatch) {
+    throw new Error(`AI 返回格式异常，无法提取 JSON: ${text.slice(0, 200)}`)
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonMatch[0])
+  } catch {
+    throw new Error(`AI 返回的 JSON 无法解析: ${jsonMatch[0].slice(0, 200)}`)
+  }
+
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    typeof (parsed as RecognitionResult).isFormula !== 'boolean' ||
+    typeof (parsed as RecognitionResult).content !== 'string'
+  ) {
+    throw new Error(`AI 返回的 JSON 缺少 isFormula 或 content 字段`)
+  }
+
+  return parsed as RecognitionResult
+}
+
 async function recognizeImage(
   provider: ReturnType<typeof createOpenAICompatible>,
   modelId: string,
@@ -170,30 +195,7 @@ async function recognizeImage(
     '图片识别'
   )
 
-  const text = result.text
-  // Extract JSON from the response (handles models that prepend/append extra text)
-  const jsonMatch = /\{[\s\S]*\}/.exec(text)
-  if (!jsonMatch) {
-    throw new Error(`AI 返回格式异常，无法提取 JSON: ${text.slice(0, 200)}`)
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(jsonMatch[0])
-  } catch {
-    throw new Error(`AI 返回的 JSON 无法解析: ${jsonMatch[0].slice(0, 200)}`)
-  }
-
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    typeof (parsed as RecognitionResult).isFormula !== 'boolean' ||
-    typeof (parsed as RecognitionResult).content !== 'string'
-  ) {
-    throw new Error(`AI 返回的 JSON 缺少 isFormula 或 content 字段`)
-  }
-
-  return parsed as RecognitionResult
+  return parseRecognitionResponse(result.text)
 }
 
 function buildRetryPrompt(feedback: string): string {
@@ -257,15 +259,16 @@ async function validateRecognition(
   const text = result.text
   const jsonMatch = /\{[\s\S]*\}/.exec(text)
   if (!jsonMatch) {
-    // Cannot parse validation → treat as passed to avoid blocking
-    return { isCorrect: true, reason: '' }
+    logger.warn('校验响应无法提取 JSON，视为校验失败触发重试', 'validateRecognition')
+    return { isCorrect: false, reason: '校验响应格式异常，无法提取 JSON' }
   }
 
   let parsed: unknown
   try {
     parsed = JSON.parse(jsonMatch[0])
   } catch {
-    return { isCorrect: true, reason: '' }
+    logger.warn('校验响应 JSON 解析失败，视为校验失败触发重试', 'validateRecognition')
+    return { isCorrect: false, reason: '校验响应 JSON 解析失败' }
   }
 
   if (
@@ -273,7 +276,8 @@ async function validateRecognition(
     parsed === null ||
     typeof (parsed as ValidationResult).isCorrect !== 'boolean'
   ) {
-    return { isCorrect: true, reason: '' }
+    logger.warn('校验响应缺少 isCorrect 字段，视为校验失败触发重试', 'validateRecognition')
+    return { isCorrect: false, reason: '校验响应缺少 isCorrect 字段' }
   }
 
   return {
@@ -348,29 +352,7 @@ async function recognizeImageWithPrompt(
     '图片识别重试'
   )
 
-  const text = result.text
-  const jsonMatch = /\{[\s\S]*\}/.exec(text)
-  if (!jsonMatch) {
-    throw new Error(`AI 返回格式异常，无法提取 JSON: ${text.slice(0, 200)}`)
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(jsonMatch[0])
-  } catch {
-    throw new Error(`AI 返回的 JSON 无法解析: ${jsonMatch[0].slice(0, 200)}`)
-  }
-
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    typeof (parsed as RecognitionResult).isFormula !== 'boolean' ||
-    typeof (parsed as RecognitionResult).content !== 'string'
-  ) {
-    throw new Error(`AI 返回的 JSON 缺少 isFormula 或 content 字段`)
-  }
-
-  return parsed as RecognitionResult
+  return parseRecognitionResponse(result.text)
 }
 
 async function resolveImagePath(
@@ -513,6 +495,69 @@ function configureAiTask(_ctx: AppContext): ListrTask<AppContext> {
   }
 }
 
+function formatTimeDisplay(elapsedSeconds: number, timeoutSeconds: number): string {
+  if (timeoutSeconds > 0) {
+    return `(${elapsedSeconds}s/${timeoutSeconds}s)`
+  }
+  return `(${elapsedSeconds}s)`
+}
+
+interface FailedImage {
+  match: ImageMatch
+  imgPath: string
+  imageBuffer: Buffer
+  mimeType: string
+}
+
+async function attemptImageRecognition(
+  provider: ReturnType<typeof createOpenAICompatible>,
+  imageBuffer: Buffer,
+  mimeType: string,
+  imgName: string,
+  onStatus: (msg: string) => void,
+  onTimerReset: () => void
+): Promise<RecognitionResult> {
+  for (let attempt = 1; attempt <= MAX_RECOGNITION_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      onTimerReset()
+    }
+    try {
+      onStatus(attempt > 1 ? `识别中 (第${attempt}次尝试)...` : '识别中...')
+      if (aiEnableValidation) {
+        logger.info(
+          `开始识别并校验 (${imgName})${attempt > 1 ? ` [第${attempt}次尝试]` : ''}`,
+          '识别并替换图片内容'
+        )
+        return await recognizeWithValidation(provider, aiModel, imageBuffer, mimeType, onStatus)
+      } else {
+        logger.info(
+          `开始识别 (${imgName})${attempt > 1 ? ` [第${attempt}次尝试]` : ''}`,
+          '识别并替换图片内容'
+        )
+        return await recognizeImage(provider, aiModel, imageBuffer, mimeType)
+      }
+    } catch (err) {
+      if (err instanceof TimeoutError && attempt < MAX_RECOGNITION_ATTEMPTS) {
+        onStatus(`识别超时，重试 (${attempt + 1}/${MAX_RECOGNITION_ATTEMPTS})...`)
+        logger.warn(`${imgName} 识别超时，准备第 ${attempt + 1} 次重试`, '识别并替换图片内容')
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('所有识别尝试均失败')
+}
+
+function buildReplacement(match: ImageMatch, result: RecognitionResult, imgName: string): string {
+  if (result.isFormula) {
+    const replacement = match.isBlock ? `$$\n${result.content}\n$$` : `$${result.content}$`
+    logger.debug(`公式替换 (${imgName}): ${replacement.substring(0, 50)}...`, '识别并替换图片内容')
+    return replacement
+  }
+  logger.debug(`描述替换 (${imgName}): ${result.content.substring(0, 50)}...`, '识别并替换图片内容')
+  return result.content
+}
+
 function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
   return {
     title: '识别并替换图片内容',
@@ -550,19 +595,29 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       // Map: fullMatch → replacement string
       const replacements = new Map<string, { replacement: string; isBlock: boolean }>()
       let successCount = 0
-      let failCount = 0
+      let skipCount = 0
+      const failedImages: FailedImage[] = []
 
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i]
         const imgName = basename(match.src)
-        task.output = `识别图片 (${i + 1}/${matches.length}): ${imgName}`
+        let currentImgStartTime = Date.now()
+
+        // 启动实时计时器
+        let currentStatus = '识别中...'
+        const timerInterval = setInterval(() => {
+          const elapsedSeconds = Math.floor((Date.now() - currentImgStartTime) / 1000)
+          task.output = `识别图片 (${i + 1}/${matches.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiTimeout)} - ${currentStatus}`
+        }, 100)
+
         logger.info(`处理图片 (${i + 1}/${matches.length}): ${imgName}`, '识别并替换图片内容')
 
         const imgPath = await resolveImagePath(match.src, mdDir, mediaPath)
         if (!imgPath) {
+          clearInterval(timerInterval)
           task.output = `警告: 图片文件不存在: ${match.src}`
           logger.warn(`图片文件不存在: ${match.src}`, '识别并替换图片内容')
-          failCount++
+          skipCount++
           continue
         }
         logger.debug(`图片路径解析: ${imgPath}`, '识别并替换图片内容')
@@ -572,71 +627,122 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
           imageBuffer = await readFile(imgPath)
           logger.debug(`读取图片成功，大小: ${imageBuffer.length} bytes`, '识别并替换图片内容')
         } catch {
+          clearInterval(timerInterval)
           task.output = `警告: 无法读取图片文件: ${imgPath}`
           logger.warn(`无法读取图片文件: ${imgPath}`, '识别并替换图片内容')
-          failCount++
+          skipCount++
           continue
         }
 
         if (imageBuffer.length === 0) {
+          clearInterval(timerInterval)
           task.output = `警告: 图片文件为空: ${imgPath}`
           logger.warn(`图片文件为空: ${imgPath}`, '识别并替换图片内容')
-          failCount++
+          skipCount++
           continue
         }
 
         const mimeType = getMimeType(extname(imgPath))
         logger.debug(`图片 MIME 类型: ${mimeType}`, '识别并替换图片内容')
 
-        let result: RecognitionResult
         try {
-          if (aiEnableValidation) {
-            logger.info(`开始识别并校验 (${imgName})`, '识别并替换图片内容')
-            result = await recognizeWithValidation(
-              provider,
-              aiModel,
-              imageBuffer,
-              mimeType,
-              (msg) => {
-                task.output = `(${i + 1}/${matches.length}) ${imgName}: ${msg}`
-                logger.debug(`${imgName}: ${msg}`, '识别并替换图片内容')
-              }
-            )
-          } else {
-            logger.info(`开始识别 (${imgName})`, '识别并替换图片内容')
-            result = await recognizeImage(provider, aiModel, imageBuffer, mimeType)
-          }
+          const result = await attemptImageRecognition(
+            provider,
+            imageBuffer,
+            mimeType,
+            imgName,
+            (msg) => {
+              currentStatus = msg
+            },
+            () => {
+              currentImgStartTime = Date.now()
+            }
+          )
+          clearInterval(timerInterval)
+          const elapsedSeconds = Math.floor((Date.now() - currentImgStartTime) / 1000)
+          task.output = `识别图片 (${i + 1}/${matches.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiTimeout)} - 完成`
           logger.info(`识别成功 (${imgName}): isFormula=${result.isFormula}`, '识别并替换图片内容')
           successCount++
+
+          const replacement = buildReplacement(match, result, imgName)
+          replacements.set(match.fullMatch, { replacement, isBlock: match.isBlock })
         } catch (err) {
+          clearInterval(timerInterval)
           const errMsg = err instanceof Error ? err.message : String(err)
-          task.output = `警告: AI 识别失败 (${imgName}): ${errMsg}`
+          const elapsedSeconds = Math.floor((Date.now() - currentImgStartTime) / 1000)
+          task.output = `警告: AI 识别失败 (${imgName}) ${formatTimeDisplay(elapsedSeconds, aiTimeout)}: ${errMsg}`
           logger.error(`AI 识别失败 (${imgName}): ${errMsg}`, '识别并替换图片内容')
-          failCount++
+          failedImages.push({ match, imgPath, imageBuffer, mimeType })
           continue
         }
+      }
 
-        let replacement: string
-        if (result.isFormula) {
-          replacement = match.isBlock ? `$$\n${result.content}\n$$` : `$${result.content}$`
-          logger.debug(
-            `公式替换 (${imgName}): ${replacement.substring(0, 50)}...`,
-            '识别并替换图片内容'
-          )
-        } else {
-          replacement = result.content
-          logger.debug(
-            `描述替换 (${imgName}): ${replacement.substring(0, 50)}...`,
-            '识别并替换图片内容'
-          )
+      // 失败任务重试
+      while (failedImages.length > 0) {
+        task.output = `${failedImages.length} 张图片识别失败，等待确认...`
+        const retryConfirmed = await task.prompt(ListrInquirerPromptAdapter).run(confirm, {
+          message: `${failedImages.length} 张图片识别失败，是否重试这些图片？`,
+          default: true,
+        })
+        if (!retryConfirmed) {
+          logger.info(`用户放弃重试 ${failedImages.length} 张失败图片`, '识别并替换图片内容')
+          break
         }
 
-        replacements.set(match.fullMatch, { replacement, isBlock: match.isBlock })
+        const retryList = [...failedImages]
+        failedImages.length = 0
+        logger.info(`开始重试 ${retryList.length} 张失败图片`, '识别并替换图片内容')
+
+        for (let i = 0; i < retryList.length; i++) {
+          const { match, imgPath, imageBuffer, mimeType } = retryList[i]
+          const imgName = basename(match.src)
+          let retryStartTime = Date.now()
+          let retryStatus = '重试识别中...'
+          const timerInterval = setInterval(() => {
+            const elapsedSeconds = Math.floor((Date.now() - retryStartTime) / 1000)
+            task.output = `重试图片 (${i + 1}/${retryList.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiTimeout)} - ${retryStatus}`
+          }, 100)
+
+          logger.info(`重试图片 (${i + 1}/${retryList.length}): ${imgName}`, '识别并替换图片内容')
+
+          try {
+            const result = await attemptImageRecognition(
+              provider,
+              imageBuffer,
+              mimeType,
+              imgName,
+              (msg) => {
+                retryStatus = msg
+              },
+              () => {
+                retryStartTime = Date.now()
+              }
+            )
+            clearInterval(timerInterval)
+            const elapsedSeconds = Math.floor((Date.now() - retryStartTime) / 1000)
+            task.output = `重试图片 (${i + 1}/${retryList.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiTimeout)} - 完成`
+            logger.info(
+              `重试成功 (${imgName}): isFormula=${result.isFormula}`,
+              '识别并替换图片内容'
+            )
+            successCount++
+
+            const replacement = buildReplacement(match, result, imgName)
+            replacements.set(match.fullMatch, { replacement, isBlock: match.isBlock })
+          } catch (err) {
+            clearInterval(timerInterval)
+            const errMsg = err instanceof Error ? err.message : String(err)
+            task.output = `重试失败 (${imgName}): ${errMsg}`
+            logger.error(`重试失败 (${imgName}): ${errMsg}`, '识别并替换图片内容')
+            failedImages.push({ match, imgPath, imageBuffer, mimeType })
+          }
+        }
       }
 
       // Apply replacements
       task.output = '应用替换结果'
-      logger.info(`应用替换结果，成功: ${successCount}, 失败: ${failCount}`, '识别并替换图片内容')
+      const totalFailed = failedImages.length + skipCount
+      logger.info(`应用替换结果，成功: ${successCount}, 失败: ${totalFailed}`, '识别并替换图片内容')
       const outLines: string[] = []
       for (const line of lines) {
         let processed = line
@@ -671,9 +777,11 @@ function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       logger.info(`结果文件已写出: ${outPath}`, '识别并替换图片内容')
 
       ctx.lastContext = { outFilename, outputPath: outPath, mediaPath }
-      task.output = `完成，共处理 ${replacements.size}/${matches.length} 张图片`
+      task.output =
+        `完成，成功: ${successCount}/${matches.length}` +
+        (totalFailed > 0 ? `，失败: ${totalFailed}` : '')
       logger.info(
-        `图片处理完成，共处理 ${replacements.size}/${matches.length} 张图片`,
+        `图片处理完成，成功: ${successCount}/${matches.length}，失败: ${totalFailed}`,
         '识别并替换图片内容'
       )
     },
