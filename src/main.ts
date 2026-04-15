@@ -6,7 +6,7 @@ import { pandocCheckTask } from './tasks/pandocCheck.js'
 import { docxConvertTask } from './tasks/docxConvert.js'
 import { mediaConvertTask } from './tasks/mediaConvert.js'
 import { mdCleanupTask } from './tasks/mdCleanup.js'
-import { imageRecognitionTask } from './tasks/imageRecognition.js'
+import { imageRecognitionTask } from './tasks/imageRecognition/index.js'
 
 const ctx = createContext()
 const runner = createRunner(ctx)
