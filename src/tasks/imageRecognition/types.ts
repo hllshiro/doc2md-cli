@@ -2,8 +2,10 @@ export interface ModelsResponse {
   data: { id: string }[]
 }
 
+export type ContentType = 'ascii' | 'latex' | 'description'
+
 export interface RecognitionResult {
-  isFormula: boolean
+  contentType: ContentType
   content: string
 }
 

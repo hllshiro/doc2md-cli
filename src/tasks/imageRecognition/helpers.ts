@@ -83,11 +83,36 @@ export function buildReplacement(
   result: RecognitionResult,
   imgName: string
 ): string {
-  if (result.isFormula) {
-    const replacement = match.isBlock ? `$$\n${result.content}\n$$` : `$${result.content}$`
-    logger.debug(`公式替换 (${imgName}): ${replacement.substring(0, 50)}...`, '识别并替换图片内容')
-    return replacement
+  const { contentType, content } = result
+
+  switch (contentType) {
+    case 'ascii':
+      // ASCII 字符直接替换，无需包裹
+      logger.debug(`ASCII替换 (${imgName}): ${content}`, '识别并替换图片内容')
+      return content
+
+    case 'latex': {
+      // LaTeX 公式：AI 识别内容，代码根据上下文（图片位置）决定包裹方式
+      // match.isBlock 表示图片是否独占一行（无其他文本内容）
+      if (match.isBlock) {
+        // 块级：图片独占一行，使用 $$ 包裹，独立成行
+        logger.debug(`LaTeX块级替换 (${imgName}): $$${content}$$`, '识别并替换图片内容')
+        return `$$\n${content}\n$$`
+      } else {
+        // 行内：图片与其他文本同行，使用 $ 包裹
+        logger.debug(`LaTeX行内替换 (${imgName}): $${content}$`, '识别并替换图片内容')
+        return `$${content}$`
+      }
+    }
+
+    case 'description':
+      // 描述文本直接返回
+      logger.debug(`描述替换 (${imgName}): ${content.substring(0, 50)}...`, '识别并替换图片内容')
+      return content
+
+    default:
+      // 兜底处理，直接返回内容
+      logger.warn(`未知的 contentType: ${contentType}，直接返回内容`, '识别并替换图片内容')
+      return content
   }
-  logger.debug(`描述替换 (${imgName}): ${result.content.substring(0, 50)}...`, '识别并替换图片内容')
-  return result.content
 }

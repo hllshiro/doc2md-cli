@@ -166,7 +166,10 @@ export function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
           clearInterval(timerInterval)
           const elapsedSeconds = Math.floor((Date.now() - currentImgStartTime) / 1000)
           task.output = `识别图片 (${i + 1}/${matches.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiConfig.timeout)} - 完成`
-          logger.info(`识别成功 (${imgName}): isFormula=${result.isFormula}`, '识别并替换图片内容')
+          logger.info(
+            `识别成功 (${imgName}): contentType=${result.contentType}`,
+            '识别并替换图片内容'
+          )
           successCount++
 
           const replacement = buildReplacement(match, result, imgName)
@@ -227,7 +230,7 @@ export function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
             const elapsedSeconds = Math.floor((Date.now() - retryStartTime) / 1000)
             task.output = `重试图片 (${i + 1}/${retryList.length}): ${imgName} ${formatTimeDisplay(elapsedSeconds, aiConfig.timeout)} - 完成`
             logger.info(
-              `重试成功 (${imgName}): isFormula=${result.isFormula}`,
+              `重试成功 (${imgName}): contentType=${result.contentType}`,
               '识别并替换图片内容'
             )
             successCount++

@@ -3,7 +3,7 @@ import { generateText } from 'ai'
 import { logger } from '../../logger.js'
 import { aiConfig } from './config.js'
 import { MAX_RECOGNITION_ATTEMPTS, VALIDATION_PROMPT, VISION_PROMPT } from './constants.js'
-import type { RecognitionResult, ValidationResult } from './types.js'
+import type { ContentType, RecognitionResult, ValidationResult } from './types.js'
 
 export class TimeoutError extends Error {
   constructor(message: string) {
@@ -36,6 +36,8 @@ export async function withTimeout<T>(
   }
 }
 
+const VALID_CONTENT_TYPES: ContentType[] = ['ascii', 'latex', 'description']
+
 export function parseRecognitionResponse(text: string): RecognitionResult {
   const jsonMatch = /\{[\s\S]*\}/.exec(text)
   if (!jsonMatch) {
@@ -52,10 +54,16 @@ export function parseRecognitionResponse(text: string): RecognitionResult {
   if (
     typeof parsed !== 'object' ||
     parsed === null ||
-    typeof (parsed as RecognitionResult).isFormula !== 'boolean' ||
     typeof (parsed as RecognitionResult).content !== 'string'
   ) {
-    throw new Error(`AI 返回的 JSON 缺少 isFormula 或 content 字段`)
+    throw new Error(`AI 返回的 JSON 缺少 content 字段`)
+  }
+
+  const contentType = (parsed as RecognitionResult).contentType
+  if (!VALID_CONTENT_TYPES.includes(contentType)) {
+    throw new Error(
+      `AI 返回的 contentType 无效: ${contentType}，期望: ${VALID_CONTENT_TYPES.join(', ')}`
+    )
   }
 
   return parsed as RecognitionResult
@@ -103,19 +111,25 @@ A previous attempt was made but was found incorrect. Here is the feedback:
 
 Please try again carefully, taking the feedback into account.
 
-Rules:
-1. If the image contains a mathematical formula, equation, or mathematical expression:
-   - Set "isFormula" to true
-   - Provide the LaTeX representation in "content" (without dollar sign delimiters)
-   - Use standard LaTeX math notation
-2. If the image is NOT a mathematical formula:
-   - Set "isFormula" to false
-   - Provide a concise text description in "content" that captures the key information,
-     data, and relationships shown in the image
-   - Use Chinese for the description
+Follow these steps in order:
+
+STEP 1: Check if the image contains simple content that can be directly represented as plain text characters
+- Examples: single letters (A, B, C, ω, λ, α, β, π), digits (0-9), simple symbols (+, -, =, <, >), basic operators
+- These are characters that can be directly typed or copied as text without LaTeX formatting
+- If YES: Set "contentType" to "ascii" and provide the character(s) in "content"
+
+STEP 2: If not ASCII, check if the image contains a mathematical formula, equation, or mathematical expression
+- If YES: Set "contentType" to "latex" and provide the LaTeX representation in "content" (without dollar sign delimiters)
+- Use standard LaTeX math notation
+
+STEP 3: If neither ASCII nor LaTeX formula
+- The image is a complex diagram, flowchart, illustration, or other visual content
+- Set "contentType" to "description"
+- Provide a concise text description in "content" that captures the key information, data, and relationships shown in the image
+- Use Chinese for the description
 
 Respond ONLY with a JSON object in this exact format, no other text:
-{"isFormula": true/false, "content": "..."}`
+{"contentType": "ascii|latex|description", "content": "..."}`
 }
 
 export async function validateRecognition(
