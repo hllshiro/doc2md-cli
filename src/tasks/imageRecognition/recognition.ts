@@ -64,11 +64,13 @@ export function parseRecognitionResponse(text: string): RecognitionResult {
   const content = contentMatch[1]
     // 处理 JSON 标准转义（将 \\ 还原为 \）
     .replace(/\\\\/g, '\\')
-    // 处理其他常见转义
+    // 处理转义的引号
     .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
+    // 仅在 \n、\r、\t 后面不跟字母时才视为控制字符转义
+    // 避免破坏 LaTeX 命令（如 \text, \theta, \neq, \nabla, \right, \rho 等）
+    .replace(/\\n(?![a-zA-Z])/g, '\n')
+    .replace(/\\r(?![a-zA-Z])/g, '\r')
+    .replace(/\\t(?![a-zA-Z])/g, '\t')
 
   return { contentType, content }
 }
