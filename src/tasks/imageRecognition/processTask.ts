@@ -5,6 +5,7 @@ import { ListrInquirerPromptAdapter } from '@listr2/prompt-adapter-inquirer'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../../context.js'
+import { saveOutputContext } from '../../context.js'
 import { logger } from '../../logger.js'
 import { aiConfig } from './config.js'
 import { layer, MAX_RECOGNITION_ATTEMPTS } from './constants.js'
@@ -87,6 +88,7 @@ export function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
         await mkdir(outdir, { recursive: true })
         await writeFile(outPath, source, 'utf-8')
         ctx.lastContext = { outFilename, outputPath: outPath, mediaPath }
+        await saveOutputContext(ctx.outputPath, layer, ctx.lastContext)
         return
       }
 
@@ -285,6 +287,7 @@ export function processImagesTask(ctx: AppContext): ListrTask<AppContext> {
       logger.info(`结果文件已写出: ${outPath}`, '识别并替换图片内容')
 
       ctx.lastContext = { outFilename, outputPath: outPath, mediaPath }
+      await saveOutputContext(ctx.outputPath, layer, ctx.lastContext)
       task.output =
         `完成，成功: ${successCount}/${matches.length}` +
         (totalFailed > 0 ? `，失败: ${totalFailed}` : '')

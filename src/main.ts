@@ -7,16 +7,28 @@ import { docxConvertTask } from './tasks/docxConvert.js'
 import { mediaConvertTask } from './tasks/mediaConvert.js'
 import { mdCleanupTask } from './tasks/mdCleanup.js'
 import { imageRecognitionTask } from './tasks/imageRecognition/index.js'
+import type { ListrTask } from 'listr2'
+import type { AppContext } from './context.js'
+
+function withSkipOnResume(task: ListrTask<AppContext>, index: number): ListrTask<AppContext> {
+  return {
+    ...task,
+    skip: (ctx: AppContext) =>
+      ctx.startFrom !== undefined && index < ctx.startFrom
+        ? `\x1b[9m${task.title as string}\x1b[29m`
+        : false,
+  }
+}
 
 const ctx = createContext()
 const runner = createRunner(ctx)
 
 runner.add(docxInputTask)
-runner.add(pandocCheckTask)
-runner.add(docxConvertTask)
-runner.add(mediaConvertTask)
-runner.add(mdCleanupTask)
-runner.add(imageRecognitionTask)
+runner.add(withSkipOnResume(pandocCheckTask, 1))
+runner.add(withSkipOnResume(docxConvertTask, 2))
+runner.add(withSkipOnResume(mediaConvertTask, 3))
+runner.add(withSkipOnResume(mdCleanupTask, 4))
+runner.add(withSkipOnResume(imageRecognitionTask, 5))
 
 async function pause(): Promise<void> {
   process.stdout.write('\n按任意键退出...')

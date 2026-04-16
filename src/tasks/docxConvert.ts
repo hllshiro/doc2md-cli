@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
+import { saveOutputContext } from '../context.js'
 import { logger } from '../logger.js'
 import { basename, join } from 'path'
 
@@ -64,7 +65,7 @@ export const docxConvertTask: ListrTask<AppContext> = {
         reject(err)
       })
 
-      proc.on('close', (code) => {
+      proc.on('close', async (code) => {
         if (code === 0) {
           logger.info(`Pandoc 转换成功，输出文件: ${outputPath}`, '将文档转换为 Markdown')
           ctx.lastContext = {
@@ -72,6 +73,7 @@ export const docxConvertTask: ListrTask<AppContext> = {
             outputPath,
             mediaPath,
           }
+          await saveOutputContext(ctx.outputPath, 'docxConvert', ctx.lastContext)
           resolve()
         } else {
           logger.error(`Pandoc 转换失败，退出码: ${code}, 错误: ${stderr}`, '将文档转换为 Markdown')

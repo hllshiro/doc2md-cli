@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
+import { saveOutputContext } from '../context.js'
 import { logger } from '../logger.js'
 
 // 定位 MetafileConverter.exe：
@@ -156,6 +157,7 @@ function patchMarkdownTask(ctx: AppContext): ListrTask<AppContext> {
         outputPath: dstMdPath,
         mediaPath: join(outdir, 'media'),
       }
+      await saveOutputContext(ctx.outputPath, 'mediaConvert', ctx.lastContext)
     },
   }
 }

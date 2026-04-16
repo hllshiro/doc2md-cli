@@ -1,11 +1,13 @@
-import { input } from '@inquirer/prompts'
+import { input, select } from '@inquirer/prompts'
 import { ListrInquirerPromptAdapter } from '@listr2/prompt-adapter-inquirer'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
+import { RESUME_POINTS, loadOutputContext, rebuildOutputContext } from '../context.js'
 import { loadCache, saveCache } from '../utils.js'
 import { logger } from '../logger.js'
 
 import { access } from 'fs/promises'
+import { existsSync } from 'fs'
 import { dirname, isAbsolute, join } from 'path'
 
 /**
@@ -56,5 +58,43 @@ export const docxInputTask: ListrTask<AppContext> = {
     }
 
     logger.info(`路径解析完成 - 输入: ${ctx.inputPath}, 输出: ${ctx.outputPath}`, '输入文档路径')
+
+    // 检测是否存在之前的输出，询问用户是否从某个任务恢复
+    if (existsSync(ctx.outputPath)) {
+      logger.info('检测到已有输出目录，询问用户是否恢复', '输入文档路径')
+
+      const choices = [
+        { value: 0 as number, name: '从头开始' },
+        ...RESUME_POINTS.map((p) => ({ value: p.value as number, name: p.name })),
+      ]
+
+      const startFrom = (await task.prompt(ListrInquirerPromptAdapter).run(select, {
+        message: '检测到已有输出内容，请选择执行方式：',
+        choices,
+      })) as number
+
+      if (startFrom > 0) {
+        const point = RESUME_POINTS.find((p) => p.value === startFrom)!
+        logger.info(
+          `用户选择从任务 ${startFrom} 恢复，前置 layer: ${point.previousLayer}`,
+          '输入文档路径'
+        )
+
+        const loaded = await loadOutputContext(ctx.outputPath, point.previousLayer)
+        if (loaded) {
+          ctx.lastContext = loaded
+          logger.info(`已从 context.json 恢复上下文: ${JSON.stringify(loaded)}`, '输入文档路径')
+        } else {
+          ctx.lastContext = rebuildOutputContext(ctx.outputPath, point.previousLayer, ctx.inputPath)
+          logger.warn(
+            `context.json 不存在，已从目录结构重建上下文: ${JSON.stringify(ctx.lastContext)}`,
+            '输入文档路径'
+          )
+        }
+        ctx.startFrom = startFrom
+      } else {
+        logger.info('用户选择从头开始', '输入文档路径')
+      }
+    }
   },
 }

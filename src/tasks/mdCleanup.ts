@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ListrTask } from 'listr2'
 import type { AppContext } from '../context.js'
+import { saveOutputContext } from '../context.js'
 import { logger } from '../logger.js'
 
 // State machine states
@@ -379,6 +380,7 @@ export const mdCleanupTask: ListrTask<AppContext> = {
           outputPath: outPath,
           mediaPath: srcMedia,
         }
+        await saveOutputContext(ctx.outputPath, 'mdCleanup', ctx.lastContext)
         resolve()
       } catch (err) {
         logger.error(
