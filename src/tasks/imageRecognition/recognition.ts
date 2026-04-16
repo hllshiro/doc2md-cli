@@ -55,6 +55,12 @@ export function parseRecognitionResponse(text: string): RecognitionResult {
   }
 
   const contentType = contentTypeMatch[1] as ContentType
+  if (!VALID_CONTENT_TYPES.includes(contentType)) {
+    throw new Error(
+      `AI 返回的 contentType 无效: ${contentType}，期望: ${VALID_CONTENT_TYPES.join(', ')}`
+    )
+  }
+
   const content = contentMatch[1]
     // 处理 JSON 标准转义（将 \\ 还原为 \）
     .replace(/\\\\/g, '\\')
@@ -63,12 +69,6 @@ export function parseRecognitionResponse(text: string): RecognitionResult {
     .replace(/\\n/g, '\n')
     .replace(/\\r/g, '\r')
     .replace(/\\t/g, '\t')
-
-  if (!VALID_CONTENT_TYPES.includes(contentType)) {
-    throw new Error(
-      `AI 返回的 contentType 无效: ${contentType}，期望: ${VALID_CONTENT_TYPES.join(', ')}`
-    )
-  }
 
   return { contentType, content }
 }
