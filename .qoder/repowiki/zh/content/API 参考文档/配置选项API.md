@@ -349,7 +349,7 @@ CONTENT --> VALID
   - 输入验证与缓存：读取用户输入并持久化缓存，便于后续任务复用
   - 环境检测：检测 pandoc 是否可用，决定可执行文件路径
 - 关键字段与默认值
-  - 缓存文件：~/.doc2xml-cli/cache.json
+  - 缓存文件：~/.doc2md-cli/cache.json
   - 默认 pandoc 可执行文件：pandoc
 - 优先级与覆盖
   - 任务会覆盖上下文中的路径与工具路径
@@ -413,7 +413,7 @@ CONTENT --> VALID
   - 支持aiEnableValidation和aiTimeout等新配置项
 - 关键字段与默认值
   - InputCache接口：包含所有AI相关配置项
-  - 缓存文件位置：~/.doc2xml-cli/cache.json
+  - 缓存文件位置：~/.doc2md-cli/cache.json
   - 默认值：空对象，所有AI配置项都可选
 - 优先级与覆盖
   - 用户交互配置会覆盖缓存中的默认值
@@ -563,7 +563,7 @@ PROCESS --> HELPERS["src/tasks/imageRecognition/helpers.ts"]
   - 参考路径：[src/tasks/imageRecognition/config.ts:1-16](file://src/tasks/imageRecognition/config.ts#L1-L16)，[src/tasks/imageRecognition/recognition.ts:1-267](file://src/tasks/imageRecognition/recognition.ts#L1-L267)
 - **新增** 缓存配置问题
   - 症状：配置无法持久化或丢失
-  - 排查：检查 ~/.doc2xml-cli/cache.json 权限；确认缓存文件格式正确
+  - 排查：检查 ~/.doc2md-cli/cache.json 权限；确认缓存文件格式正确
   - 参考路径：[src/utils.ts:32-53](file://src/utils.ts#L32-L53)
 - **新增** 三元内容类型识别问题
   - 症状：识别结果不符合预期的内容类型

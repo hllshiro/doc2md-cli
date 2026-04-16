@@ -27,7 +27,7 @@
 
 ## 简介
 
-本文件提供了doc2xml-cli项目中工具函数模块的完整API参考文档。该工具集主要包含用户输入缓存函数、文件操作函数和辅助工具函数，用于将DOCX文档转换为Markdown格式的交互式CLI管道。
+本文件提供了doc2md-cli项目中工具函数模块的完整API参考文档。该工具集主要包含用户输入缓存函数、文件操作函数和辅助工具函数，用于将DOCX文档转换为Markdown格式的交互式CLI管道。
 
 项目采用TypeScript编写，使用现代Node.js特性，包括ES模块、异步函数和Promise。工具函数模块设计简洁，功能明确，具有良好的错误处理和调试支持。
 
@@ -368,12 +368,12 @@ Runner --> Adapter
 
 ### 内部模块耦合度分析
 
-| 模块 | 耦合度 | 主要依赖 | 影响范围 |
-|------|--------|----------|----------|
-| utils.ts | 低 | FS, Path, OS | 仅缓存和样式化功能 |
-| context.ts | 极低 | 无 | 类型定义和工厂函数 |
-| runner.ts | 极低 | Listr2 | 任务运行器包装 |
-| tasks/* | 中等 | utils.ts, Node FS, Path, Child Process | 各种业务逻辑 |
+| 模块       | 耦合度 | 主要依赖                               | 影响范围           |
+| ---------- | ------ | -------------------------------------- | ------------------ |
+| utils.ts   | 低     | FS, Path, OS                           | 仅缓存和样式化功能 |
+| context.ts | 极低   | 无                                     | 类型定义和工厂函数 |
+| runner.ts  | 极低   | Listr2                                 | 任务运行器包装     |
+| tasks/*    | 中等   | utils.ts, Node FS, Path, Child Process | 各种业务逻辑       |
 
 **章节来源**
 - [package.json:21-25](file://package.json#L21-L25)
@@ -445,12 +445,12 @@ Runner --> Adapter
 
 1. **启用详细日志**:
    ```bash
-   export DEBUG=doc2xml-cli
+   export DEBUG=doc2md-cli
    node src/main.ts
    ```
 
 2. **缓存调试**:
-   - 检查用户主目录下的`.doc2xml-cli/cache.json`文件
+   - 检查用户主目录下的`.doc2md-cli/cache.json`文件
    - 验证JSON格式的有效性
    - 确认文件权限设置正确
 
@@ -465,7 +465,7 @@ Runner --> Adapter
 
 ## 结论
 
-工具函数模块为doc2xml-cli项目提供了简洁而强大的基础功能支持。其设计特点包括：
+工具函数模块为doc2md-cli项目提供了简洁而强大的基础功能支持。其设计特点包括：
 
 1. **模块化设计**: 功能分离清晰，职责单一
 2. **错误容忍**: 静默失败策略确保应用稳定性

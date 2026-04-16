@@ -14,7 +14,7 @@ export function confirmDefaultAnswer(defaultYes: boolean): string {
   return defaultYes ? `(${yes}/${dimNo})` : `(${dimYes}/${no})`
 }
 
-const CACHE_DIR = join(homedir(), '.doc2xml-cli')
+const CACHE_DIR = join(homedir(), '.doc2md-cli')
 const CACHE_FILE = join(CACHE_DIR, 'cache.json')
 
 export type InputCache = {

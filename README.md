@@ -1,4 +1,4 @@
-# doc2xml-cli
+# doc2md-cli
 
 一个交互式 CLI 工具，用于将 DOCX 文档转换为 Markdown 格式，支持 AI 图像识别、矢量图转换等高级功能。
 
@@ -170,7 +170,7 @@ out/
 ### 项目结构
 
 ```
-doc2xml-cli/
+doc2md-cli/
 ├── src/
 │   ├── main.ts                    # 应用入口
 │   ├── runner.ts                  # 任务调度器

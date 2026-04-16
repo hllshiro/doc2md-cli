@@ -35,7 +35,7 @@
 - 实际转换示例与常见问题解决方案
 
 ## 项目结构
-doc2xml-cli 采用“任务流水线”架构，围绕 Listr2 组织多个独立任务，通过共享上下文在任务间传递数据。docxConvertTask 位于流水线中间阶段，负责将 .docx 转换为 Markdown，并抽取媒体资源。
+doc2md-cli 采用“任务流水线”架构，围绕 Listr2 组织多个独立任务，通过共享上下文在任务间传递数据。docxConvertTask 位于流水线中间阶段，负责将 .docx 转换为 Markdown，并抽取媒体资源。
 
 ```mermaid
 graph TB

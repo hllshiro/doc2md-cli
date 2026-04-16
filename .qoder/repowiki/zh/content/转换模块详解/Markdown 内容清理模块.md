@@ -33,7 +33,7 @@
 10. [附录](#附录)
 
 ## 简介
-本模块是 doc2xml-cli 工作流中的关键后处理任务，负责清理由 pandoc 从 Word 文档转换而来的 Markdown 中的 HTML 遗留标记，将其规范化为标准 Markdown。其核心目标包括：
+本模块是 doc2md-cli 工作流中的关键后处理任务，负责清理由 pandoc 从 Word 文档转换而来的 Markdown 中的 HTML 遗留标记，将其规范化为标准 Markdown。其核心目标包括：
 - 移除正文段落包装器标签，保留内部文本
 - 将中文标题样式转换为 ATX 标题
 - 将 figure 块转换为标准 Markdown 图片语法

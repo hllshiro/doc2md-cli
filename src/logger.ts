@@ -14,7 +14,7 @@ class ProcessLogger {
   private constructor() {
     // 生成带时间戳的日志文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    this.logPath = join(tmpdir(), `doc2xml-cli-${timestamp}.log`)
+    this.logPath = join(tmpdir(), `doc2md-cli-${timestamp}.log`)
 
     // 确保临时目录存在
     const tmpDir = tmpdir()
@@ -28,7 +28,7 @@ class ProcessLogger {
 
     // 写入日志头
     this.writeToFile('='.repeat(80))
-    this.writeToFile(`doc2xml-cli 执行日志`)
+    this.writeToFile(`doc2md-cli 执行日志`)
     this.writeToFile(`开始时间: ${new Date().toLocaleString('zh-CN')}`)
     this.writeToFile(`日志文件: ${this.logPath}`)
     this.writeToFile('='.repeat(80))

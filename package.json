@@ -1,5 +1,5 @@
 {
-  "name": "doc2xml-cli",
+  "name": "doc2md-cli",
   "version": "1.0.0",
   "description": "Interactive CLI pipeline to convert .docx to Markdown",
   "type": "module",
