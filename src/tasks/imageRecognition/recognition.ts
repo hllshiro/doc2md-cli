@@ -44,29 +44,33 @@ export function parseRecognitionResponse(text: string): RecognitionResult {
     throw new Error(`AI 返回格式异常，无法提取 JSON: ${text.slice(0, 200)}`)
   }
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(jsonMatch[0])
-  } catch {
-    throw new Error(`AI 返回的 JSON 无法解析: ${jsonMatch[0].slice(0, 200)}`)
+  const jsonStr = jsonMatch[0]
+
+  // 使用正则提取字段，避免 JSON.parse 对 LaTeX 反斜杠转义的限制
+  const contentTypeMatch = /"contentType"\s*:\s*"([^"]*)"/.exec(jsonStr)
+  const contentMatch = /"content"\s*:\s*"([\s\S]*?)"(?=\s*[,}])/.exec(jsonStr)
+
+  if (!contentTypeMatch || !contentMatch) {
+    throw new Error(`AI 返回的 JSON 缺少必要字段: ${jsonStr.slice(0, 200)}`)
   }
 
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    typeof (parsed as RecognitionResult).content !== 'string'
-  ) {
-    throw new Error(`AI 返回的 JSON 缺少 content 字段`)
-  }
+  const contentType = contentTypeMatch[1] as ContentType
+  const content = contentMatch[1]
+    // 处理 JSON 标准转义（将 \\ 还原为 \）
+    .replace(/\\\\/g, '\\')
+    // 处理其他常见转义
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
 
-  const contentType = (parsed as RecognitionResult).contentType
   if (!VALID_CONTENT_TYPES.includes(contentType)) {
     throw new Error(
       `AI 返回的 contentType 无效: ${contentType}，期望: ${VALID_CONTENT_TYPES.join(', ')}`
     )
   }
 
-  return parsed as RecognitionResult
+  return { contentType, content }
 }
 
 export async function recognizeImage(
