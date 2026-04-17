@@ -32,7 +32,7 @@
 10. [附录](#附录)
 
 ## 简介
-本文件为 Doc2XML CLI 的完整 API 参考文档，覆盖应用上下文、任务定义、工具函数与配置参数的规范说明。内容包括：
+本文件为 Doc2MD CLI 的完整 API 参考文档，覆盖应用上下文、任务定义、工具函数与配置参数的规范说明。内容包括：
 - AppContext 接口与输出上下文 OutputContext 的字段与语义
 - 任务接口 ListrTask<AppContext> 的职责与数据流
 - 工具函数（缓存、确认提示样式等）
@@ -94,7 +94,7 @@ K["sea-config.json<br/>SEA 配置"] --> G
 - [src/utils.ts:1-50](file://src/utils.ts#L1-L50)
 
 ## 架构总览
-Doc2XML CLI 以“任务流水线”为核心，通过 AppContext 在各任务间传递状态；任务由 listr2 执行，具备良好的可视化与错误传播能力。
+Doc2MD CLI 以“任务流水线”为核心，通过 AppContext 在各任务间传递状态；任务由 listr2 执行，具备良好的可视化与错误传播能力。
 
 ```mermaid
 sequenceDiagram
@@ -382,7 +382,7 @@ Release["scripts/release.mjs"] --> Pkg["package.json"]
 - [src/utils.ts:46-48](file://src/utils.ts#L46-L48)
 
 ## 结论
-本 API 参考文档梳理了 Doc2XML CLI 的上下文模型、任务流水线、工具函数与配置体系。通过清晰的任务边界与上下文传递机制，系统实现了从 .docx 到 Markdown 的自动化处理，并提供了稳健的错误处理与调试支持。建议在扩展新任务时遵循现有模式，保持对 AppContext 的最小侵入式使用与一致的错误传播。
+本 API 参考文档梳理了 Doc2MD CLI 的上下文模型、任务流水线、工具函数与配置体系。通过清晰的任务边界与上下文传递机制，系统实现了从 .docx 到 Markdown 的自动化处理，并提供了稳健的错误处理与调试支持。建议在扩展新任务时遵循现有模式，保持对 AppContext 的最小侵入式使用与一致的错误传播。
 
 ## 附录
 
