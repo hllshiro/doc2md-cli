@@ -4,10 +4,6 @@ import {
   RE_ZHENGWEN_CLOSE,
   RE_HEADING_OPEN,
   RE_HEADING_CLOSE,
-  RE_DATA_CUSTOM_STYLE_OPEN,
-  RE_DATA_CUSTOM_STYLE_CLOSE,
-  RE_CUSTOM_STYLE_OPEN,
-  RE_CUSTOM_STYLE_CLOSE,
   RE_FIGURE_OPEN,
   RE_FIGURE_CLOSE,
   RE_TABLE_OPEN,
@@ -18,6 +14,8 @@ import {
   RE_INLINE_DATA_CUSTOM_STYLE,
   RE_INLINE_CUSTOM_STYLE,
   RE_INLINE_DIV_CLOSE,
+  RE_DIV_DATA_CUSTOM_STYLE_BLOCK,
+  RE_DIV_CUSTOM_STYLE_BLOCK,
   ATTR_CLEANUP_PATTERNS,
   RE_MULTIPLE_BLANK_LINES,
 } from './constants.js'
@@ -83,16 +81,6 @@ function handleNormal(line: string, ctx: CleanContext, warn: WarnFn): State {
   if (RE_TABLE_OPEN.test(line)) {
     ctx.tableLines = [line]
     return State.IN_TABLE
-  }
-
-  // Rule: enter data-custom-style div block
-  if (RE_DATA_CUSTOM_STYLE_OPEN.test(line)) {
-    return State.IN_DATA_CUSTOM_STYLE
-  }
-
-  // Rule: enter custom-style div block
-  if (RE_CUSTOM_STYLE_OPEN.test(line)) {
-    return State.IN_CUSTOM_STYLE
   }
 
   // Rule 4 / Rule 7: process content line
@@ -201,26 +189,6 @@ function handleColgroup(line: string, ctx: CleanContext, _warn: WarnFn): State {
 }
 
 /**
- * IN_DATA_CUSTOM_STYLE 状态处理器
- */
-function handleDataCustomStyle(line: string, ctx: CleanContext, warn: WarnFn): State {
-  if (RE_DATA_CUSTOM_STYLE_CLOSE.test(line)) {
-    return State.NORMAL
-  }
-  return handleContentLine(line, ctx, warn, State.IN_DATA_CUSTOM_STYLE)
-}
-
-/**
- * IN_CUSTOM_STYLE 状态处理器
- */
-function handleCustomStyle(line: string, ctx: CleanContext, warn: WarnFn): State {
-  if (RE_CUSTOM_STYLE_CLOSE.test(line)) {
-    return State.NORMAL
-  }
-  return handleContentLine(line, ctx, warn, State.IN_CUSTOM_STYLE)
-}
-
-/**
  * IN_IMG 状态处理器
  */
 function handleImg(line: string, ctx: CleanContext, warn: WarnFn): State {
@@ -289,8 +257,6 @@ const stateHandlers: Record<State, (line: string, ctx: CleanContext, warn: WarnF
   [State.IN_FIGURE]: handleFigure,
   [State.IN_TABLE]: handleTable,
   [State.IN_COLGROUP]: handleColgroup,
-  [State.IN_DATA_CUSTOM_STYLE]: handleDataCustomStyle,
-  [State.IN_CUSTOM_STYLE]: handleCustomStyle,
   [State.IN_IMG]: handleImg,
 }
 
@@ -355,6 +321,26 @@ export function cleanMarkdown(source: string, warn: WarnFn): string {
   handleUnclosedBlocks(ctx, warn)
 
   let result = ctx.out.join('\n')
+
+  // 全局清理：处理跨行、非行首的 div 自定义样式标签块
+  // 这些标签块在状态机中难以处理（跨行、非行首），使用全局替换
+  // 提取标签块内部的内容（去除标签本身）
+  result = result.replace(RE_DIV_DATA_CUSTOM_STYLE_BLOCK, (match) => {
+    // 提取 <div...> 和 </div> 之间的内容
+    const contentMatch = match.match(/<div\s+data-custom-style="[^"]*">([\s\S]*?)<\/div>/)
+    if (contentMatch) {
+      return contentMatch[1].trim()
+    }
+    return ''
+  })
+  result = result.replace(RE_DIV_CUSTOM_STYLE_BLOCK, (match) => {
+    // 提取 <div...> 和 </div> 之间的内容
+    const contentMatch = match.match(/<div\s+custom-style="[^"]*">([\s\S]*?)<\/div>/)
+    if (contentMatch) {
+      return contentMatch[1].trim()
+    }
+    return ''
+  })
 
   // 最终清理：删除所有标签的 id、class、style、data-*、aria-* 属性
   for (const { pattern } of ATTR_CLEANUP_PATTERNS) {
