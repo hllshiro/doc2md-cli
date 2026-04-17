@@ -18,6 +18,7 @@ import {
   RE_INLINE_DATA_CUSTOM_STYLE,
   RE_INLINE_CUSTOM_STYLE,
   RE_INLINE_DIV_CLOSE,
+  ATTR_CLEANUP_PATTERNS,
 } from './constants.js'
 import { srcToAlt, extractImgTrailing, processLineContent } from './helpers.js'
 import { State, type CleanContext, type WarnFn } from './types.js'
@@ -334,5 +335,12 @@ export function cleanMarkdown(source: string, warn: WarnFn): string {
 
   handleUnclosedBlocks(ctx, warn)
 
-  return ctx.out.join('\n')
+  let result = ctx.out.join('\n')
+
+  // 最终清理：删除所有标签的 id、class、style 属性
+  for (const { pattern } of ATTR_CLEANUP_PATTERNS) {
+    result = result.replace(pattern, '')
+  }
+
+  return result
 }

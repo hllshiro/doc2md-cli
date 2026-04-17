@@ -31,3 +31,10 @@ export const RE_TABLE_CLOSE = /^<\/table>$/
 export const RE_IMG_SRC = /src="([^"]+)"/
 export const RE_CAPTION_TEXT = /<p>([^<]*)<\/p>/
 export const RE_IMG_CLOSE = /\/?>/ // 不锚定行尾，允许标签后有尾随文本
+
+// 最终清理：删除所有标签的 id、class、style 属性
+export const ATTR_CLEANUP_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
+  { name: 'id', pattern: /\s+id="[^"]*"/g },
+  { name: 'class', pattern: /\s+class="[^"]*"/g },
+  { name: 'style', pattern: /\s+style="[^"]*"/g },
+]
