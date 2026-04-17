@@ -1,12 +1,20 @@
 import { cpSync, mkdirSync, copyFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { execSync } from 'node:child_process'
 
 const srcDir = resolve('module/MetafileConverter/MetafileConverter/bin/Release/net8.0')
 const dstDir = resolve('dist/module')
 
-mkdirSync(dstDir, { recursive: true })
+// Step 1: 编译 .NET 项目
+console.log('Building .NET project...')
+execSync(
+  'dotnet build module/MetafileConverter/MetafileConverter/MetafileConverter.csproj -c Release',
+  { stdio: 'inherit' }
+)
+console.log('.NET build complete')
 
-// 清空旧内容，避免残留文件
+// Step 2: 清空并创建目标目录
+mkdirSync(dstDir, { recursive: true })
 rmSync(dstDir, { recursive: true, force: true })
 mkdirSync(dstDir, { recursive: true })
 
@@ -30,7 +38,7 @@ const runtimesDst = join(dstDir, 'runtimes/win/lib/net8.0')
 mkdirSync(runtimesDst, { recursive: true })
 copyFileSync(
   join(srcDir, 'runtimes/win/lib/net8.0/Microsoft.Win32.SystemEvents.dll'),
-  join(runtimesDst, 'Microsoft.Win32.SystemEvents.dll'),
+  join(runtimesDst, 'Microsoft.Win32.SystemEvents.dll')
 )
 
 console.log('Copied .NET build output → dist/module')
