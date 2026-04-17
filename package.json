@@ -9,7 +9,7 @@
     "build": "node scripts/build.mjs",
     "build:net": "dotnet build module/MetafileConverter/MetafileConverter/MetafileConverter.csproj -c Release",
     "copy:net": "node scripts/copy-net.mjs",
-    "release": "pnpm build && node scripts/release.mjs",
+    "release": "pnpm build && build:net && node scripts/release.mjs",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "vitest --run"
