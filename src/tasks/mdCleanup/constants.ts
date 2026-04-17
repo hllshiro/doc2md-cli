@@ -32,9 +32,14 @@ export const RE_IMG_SRC = /src="([^"]+)"/
 export const RE_CAPTION_TEXT = /<p>([^<]*)<\/p>/
 export const RE_IMG_CLOSE = /\/?>/ // 不锚定行尾，允许标签后有尾随文本
 
-// 最终清理：删除所有标签的 id、class、style 属性
+// 最终清理：删除所有标签的 id、class、style、data-*、aria-* 属性
 export const ATTR_CLEANUP_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
   { name: 'id', pattern: /\s+id="[^"]*"/g },
   { name: 'class', pattern: /\s+class="[^"]*"/g },
   { name: 'style', pattern: /\s+style="[^"]*"/g },
+  { name: 'data', pattern: /\s+data-[a-zA-Z0-9-]+="[^"]*"/g },
+  { name: 'aria', pattern: /\s+aria-[a-zA-Z0-9-]+="[^"]*"/g },
 ]
+
+// 空行合并：将连续多个空行合并为单个空行
+export const RE_MULTIPLE_BLANK_LINES = /\n{3,}/g

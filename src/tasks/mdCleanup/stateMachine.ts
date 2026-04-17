@@ -19,6 +19,7 @@ import {
   RE_INLINE_CUSTOM_STYLE,
   RE_INLINE_DIV_CLOSE,
   ATTR_CLEANUP_PATTERNS,
+  RE_MULTIPLE_BLANK_LINES,
 } from './constants.js'
 import { srcToAlt, extractImgTrailing, processLineContent } from './helpers.js'
 import { State, type CleanContext, type WarnFn } from './types.js'
@@ -173,6 +174,13 @@ function handleTable(line: string, ctx: CleanContext, _warn: WarnFn): State {
   line = line.replace(RE_INLINE_DATA_CUSTOM_STYLE, '')
   line = line.replace(RE_INLINE_CUSTOM_STYLE, '')
   line = line.replace(RE_INLINE_DIV_CLOSE, '')
+
+  // 跳过 colgroup 块（从 <colgroup> 开始到 </colgroup> 结束）
+  if (/^<colgroup\b/.test(line)) {
+    ctx.prevState = State.IN_TABLE
+    return State.IN_COLGROUP
+  }
+
   ctx.tableLines.push(line)
   if (RE_TABLE_CLOSE.test(line)) {
     for (const tl of ctx.tableLines) ctx.out.push(tl)
@@ -180,6 +188,16 @@ function handleTable(line: string, ctx: CleanContext, _warn: WarnFn): State {
     return State.NORMAL
   }
   return State.IN_TABLE
+}
+
+/**
+ * IN_COLGROUP 状态处理器
+ */
+function handleColgroup(line: string, ctx: CleanContext, _warn: WarnFn): State {
+  if (/^<\/colgroup>/.test(line)) {
+    return ctx.prevState
+  }
+  return State.IN_COLGROUP
 }
 
 /**
@@ -270,6 +288,7 @@ const stateHandlers: Record<State, (line: string, ctx: CleanContext, warn: WarnF
   [State.IN_HEADING]: handleHeading,
   [State.IN_FIGURE]: handleFigure,
   [State.IN_TABLE]: handleTable,
+  [State.IN_COLGROUP]: handleColgroup,
   [State.IN_DATA_CUSTOM_STYLE]: handleDataCustomStyle,
   [State.IN_CUSTOM_STYLE]: handleCustomStyle,
   [State.IN_IMG]: handleImg,
@@ -337,10 +356,13 @@ export function cleanMarkdown(source: string, warn: WarnFn): string {
 
   let result = ctx.out.join('\n')
 
-  // 最终清理：删除所有标签的 id、class、style 属性
+  // 最终清理：删除所有标签的 id、class、style、data-*、aria-* 属性
   for (const { pattern } of ATTR_CLEANUP_PATTERNS) {
     result = result.replace(pattern, '')
   }
+
+  // 最最后：合并连续空行（最多保留一个空行）
+  result = result.replace(RE_MULTIPLE_BLANK_LINES, '\n\n')
 
   return result
 }

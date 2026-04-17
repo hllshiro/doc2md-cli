@@ -7,6 +7,7 @@ export const enum State {
   IN_HEADING,
   IN_FIGURE,
   IN_TABLE,
+  IN_COLGROUP,
   IN_IMG,
   IN_DATA_CUSTOM_STYLE,
   IN_CUSTOM_STYLE,
