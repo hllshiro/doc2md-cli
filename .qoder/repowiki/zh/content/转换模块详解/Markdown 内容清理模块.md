@@ -16,6 +16,7 @@
 
 ## 更新摘要
 **变更内容**
+- 状态机重构：移除专门的自定义样式块状态处理，引入全局正则替换机制
 - 新增 colgroup 表格处理支持，增强表格块清理能力
 - 增强 HTML 属性清理系统，支持 data-* 和 aria-* 属性清理
 - 改进输出优化机制，增加空行合并功能
@@ -36,6 +37,8 @@
 
 ## 简介
 本模块是 doc2md-cli 工作流中的关键后处理任务，负责清理由 pandoc 从 Word 文档转换而来的 Markdown 中的 HTML 遗留标记，将其规范化为标准 Markdown。经过模块化重构和功能增强后，采用"状态机 + 正则扫描"的轻量实现，确保在单次线性扫描中完成所有清理规则，同时具备幂等性与顺序不变性。
+
+**更新** 状态机重构后，移除了专门的自定义样式块状态处理，引入了全局正则替换机制来处理跨行和非行首的 div 自定义样式标签，提升了处理复杂 HTML 结构的能力。
 
 增强后的模块实现了完整的错误处理机制，提供详细的日志记录和警告输出，支持多行图片处理机制，支持跨行闭合的图片标签，完整的属性清理功能，以及新增的 colgroup 表格处理支持。
 
@@ -71,19 +74,19 @@ RUNNER --> DOCX --> MEDIA --> CLEAN
 
 **图表来源**
 - [src/tasks/mdCleanup/index.ts:1-16](file://src/tasks/mdCleanup/index.ts#L1-L16)
-- [src/tasks/mdCleanup/constants.ts:1-46](file://src/tasks/mdCleanup/constants.ts#L1-L46)
+- [src/tasks/mdCleanup/constants.ts:1-54](file://src/tasks/mdCleanup/constants.ts#L1-L54)
 - [src/tasks/mdCleanup/helpers.ts:1-82](file://src/tasks/mdCleanup/helpers.ts#L1-L82)
-- [src/tasks/mdCleanup/stateMachine.ts:1-369](file://src/tasks/mdCleanup/stateMachine.ts#L1-L369)
+- [src/tasks/mdCleanup/stateMachine.ts:1-355](file://src/tasks/mdCleanup/stateMachine.ts#L1-L355)
 - [src/tasks/mdCleanup/task.ts:1-72](file://src/tasks/mdCleanup/task.ts#L1-L72)
-- [src/tasks/mdCleanup/types.ts:1-51](file://src/tasks/mdCleanup/types.ts#L1-L51)
+- [src/tasks/mdCleanup/types.ts:1-49](file://src/tasks/mdCleanup/types.ts#L1-L49)
 
 **章节来源**
 - [src/tasks/mdCleanup/index.ts:1-16](file://src/tasks/mdCleanup/index.ts#L1-L16)
-- [src/tasks/mdCleanup/constants.ts:1-46](file://src/tasks/mdCleanup/constants.ts#L1-L46)
+- [src/tasks/mdCleanup/constants.ts:1-54](file://src/tasks/mdCleanup/constants.ts#L1-L54)
 - [src/tasks/mdCleanup/helpers.ts:1-82](file://src/tasks/mdCleanup/helpers.ts#L1-L82)
-- [src/tasks/mdCleanup/stateMachine.ts:1-369](file://src/tasks/mdCleanup/stateMachine.ts#L1-L369)
+- [src/tasks/mdCleanup/stateMachine.ts:1-355](file://src/tasks/mdCleanup/stateMachine.ts#L1-L355)
 - [src/tasks/mdCleanup/task.ts:1-72](file://src/tasks/mdCleanup/task.ts#L1-L72)
-- [src/tasks/mdCleanup/types.ts:1-51](file://src/tasks/mdCleanup/types.ts#L1-L51)
+- [src/tasks/mdCleanup/types.ts:1-49](file://src/tasks/mdCleanup/types.ts#L1-L49)
 
 ## 核心组件
 增强后的模块由以下核心组件构成：
@@ -98,6 +101,7 @@ RUNNER --> DOCX --> MEDIA --> CLEAN
 - 正则表达式模式：HTML 标签匹配模式
 - 属性清理模式：ID、Class、Style、Data、Aria 属性清理
 - 空行合并模式：连续空行合并规则
+- **新增** 全局正则模式：跨行 div 自定义样式标签块匹配
 
 ### 辅助函数 (helpers.ts)
 - 行首块引用标记去除
@@ -106,12 +110,14 @@ RUNNER --> DOCX --> MEDIA --> CLEAN
 - 行内容处理与状态检测
 
 ### 状态机实现 (stateMachine.ts)
-- 状态枚举：NORMAL、IN_ZHENGWEN、IN_HEADING、IN_FIGURE、IN_TABLE、IN_COLGROUP、IN_IMG、IN_DATA_CUSTOM_STYLE、IN_CUSTOM_STYLE
+- 状态枚举：NORMAL、IN_ZHENGWEN、IN_HEADING、IN_FIGURE、IN_TABLE、IN_COLGROUP、IN_IMG
+- **更新** 移除了 IN_DATA_CUSTOM_STYLE 和 IN_CUSTOM_STYLE 状态
 - 状态处理器映射表
 - 清理上下文管理
 - 未闭合块处理
 - colgroup 表格块处理
 - 空行合并优化
+- **新增** 全局正则替换机制处理跨行 div 标签
 
 ### 任务实现 (task.ts)
 - Listr2 任务封装
@@ -127,11 +133,11 @@ RUNNER --> DOCX --> MEDIA --> CLEAN
 
 **章节来源**
 - [src/tasks/mdCleanup/index.ts:7-15](file://src/tasks/mdCleanup/index.ts#L7-L15)
-- [src/tasks/mdCleanup/constants.ts:4-46](file://src/tasks/mdCleanup/constants.ts#L4-L46)
+- [src/tasks/mdCleanup/constants.ts:4-54](file://src/tasks/mdCleanup/constants.ts#L4-L54)
 - [src/tasks/mdCleanup/helpers.ts:4-82](file://src/tasks/mdCleanup/helpers.ts#L4-L82)
-- [src/tasks/mdCleanup/stateMachine.ts:4-51](file://src/tasks/mdCleanup/stateMachine.ts#L4-L51)
+- [src/tasks/mdCleanup/stateMachine.ts:4-12](file://src/tasks/mdCleanup/stateMachine.ts#L4-L12)
 - [src/tasks/mdCleanup/task.ts:11-72](file://src/tasks/mdCleanup/task.ts#L11-L72)
-- [src/tasks/mdCleanup/types.ts:4-51](file://src/tasks/mdCleanup/types.ts#L4-L51)
+- [src/tasks/mdCleanup/types.ts:4-49](file://src/tasks/mdCleanup/types.ts#L4-L49)
 
 ## 架构总览
 增强后的 mdCleanup 作为 Listr2 任务，串联在 docxConvert 与 mediaConvert 之后，负责最终输出干净的 Markdown 文件。其数据流如下：
@@ -162,7 +168,7 @@ Clean-->>Runner : 更新 AppContext.lastContext
 ## 详细组件分析
 
 ### 状态机设计与实现
-增强后的状态机采用模块化设计，每个状态都有专门的处理器函数，新增了 colgroup 处理状态：
+**更新** 状态机重构后，移除了专门的自定义样式块状态处理，简化了状态机结构：
 
 ```mermaid
 stateDiagram-v2
@@ -171,8 +177,6 @@ NORMAL --> IN_ZHENGWEN : 匹配"正文段落"打开
 NORMAL --> IN_HEADING : 匹配"N级标题"打开
 NORMAL --> IN_FIGURE : 匹配<figure>打开
 NORMAL --> IN_TABLE : 匹配<table>打开
-NORMAL --> IN_DATA_CUSTOM_STYLE : 匹配 data-custom-style 打开
-NORMAL --> IN_CUSTOM_STYLE : 匹配 custom-style 打开
 NORMAL --> IN_IMG : 行内出现<img且未闭合
 IN_ZHENGWEN --> NORMAL : 匹配"正文段落"关闭
 IN_HEADING --> NORMAL : 匹配"N级标题"关闭
@@ -180,22 +184,20 @@ IN_FIGURE --> NORMAL : 匹配</figure>关闭
 IN_TABLE --> IN_COLGROUP : 匹配<colgroup>打开
 IN_TABLE --> NORMAL : 匹配</table>关闭
 IN_COLGROUP --> IN_TABLE : 匹配</colgroup>关闭
-IN_DATA_CUSTOM_STYLE --> NORMAL : 匹配</div>关闭
-IN_CUSTOM_STYLE --> NORMAL : 匹配</div>关闭
 IN_IMG --> NORMAL : 匹配<img/>或>闭合
 IN_IMG --> IN_IMG : 多行图片继续
 ```
 
 **图表来源**
-- [src/tasks/mdCleanup/types.ts:4-14](file://src/tasks/mdCleanup/types.ts#L4-L14)
-- [src/tasks/mdCleanup/stateMachine.ts:52-201](file://src/tasks/mdCleanup/stateMachine.ts#L52-L201)
+- [src/tasks/mdCleanup/types.ts:4-12](file://src/tasks/mdCleanup/types.ts#L4-L12)
+- [src/tasks/mdCleanup/stateMachine.ts:51-98](file://src/tasks/mdCleanup/stateMachine.ts#L51-L98)
 
 **章节来源**
-- [src/tasks/mdCleanup/types.ts:4-14](file://src/tasks/mdCleanup/types.ts#L4-L14)
-- [src/tasks/mdCleanup/stateMachine.ts:52-201](file://src/tasks/mdCleanup/stateMachine.ts#L52-L201)
+- [src/tasks/mdCleanup/types.ts:4-12](file://src/tasks/mdCleanup/types.ts#L4-L12)
+- [src/tasks/mdCleanup/stateMachine.ts:51-98](file://src/tasks/mdCleanup/stateMachine.ts#L51-L98)
 
 ### HTML 标记清理算法
-增强后的算法保持原有功能，但增加了 colgroup 表格处理和更全面的属性清理：
+**更新** 算法保持原有功能，但增加了全局正则替换机制：
 
 - **正文段落包装器移除**
   - 打开与关闭标签分别在进入/退出 IN_ZHENGWEN 时丢弃
@@ -220,15 +222,15 @@ IN_IMG --> IN_IMG : 多行图片继续
   - 最终清理：删除所有标签的 id、class、style、data-*、aria-* 属性
 - **输出优化**
   - 合并连续空行，最多保留两个空行
+- **全局正则替换**
+  - **新增** 处理跨行、非行首的 div 自定义样式标签块
+  - 提取标签块内部内容，移除标签本身
 
 **章节来源**
-- [src/tasks/mdCleanup/stateMachine.ts:52-109](file://src/tasks/mdCleanup/stateMachine.ts#L52-L109)
-- [src/tasks/mdCleanup/stateMachine.ts:114-138](file://src/tasks/mdCleanup/stateMachine.ts#L114-L138)
-- [src/tasks/mdCleanup/stateMachine.ts:143-166](file://src/tasks/mdCleanup/stateMachine.ts#L143-L166)
-- [src/tasks/mdCleanup/stateMachine.ts:171-191](file://src/tasks/mdCleanup/stateMachine.ts#L171-L191)
-- [src/tasks/mdCleanup/stateMachine.ts:196-201](file://src/tasks/mdCleanup/stateMachine.ts#L196-L201)
-- [src/tasks/mdCleanup/stateMachine.ts:226-280](file://src/tasks/mdCleanup/stateMachine.ts#L226-L280)
-- [src/tasks/mdCleanup/stateMachine.ts:346-368](file://src/tasks/mdCleanup/stateMachine.ts#L346-L368)
+- [src/tasks/mdCleanup/stateMachine.ts:51-98](file://src/tasks/mdCleanup/stateMachine.ts#L51-L98)
+- [src/tasks/mdCleanup/stateMachine.ts:157-179](file://src/tasks/mdCleanup/stateMachine.ts#L157-L179)
+- [src/tasks/mdCleanup/stateMachine.ts:226-248](file://src/tasks/mdCleanup/stateMachine.ts#L226-L248)
+- [src/tasks/mdCleanup/stateMachine.ts:325-354](file://src/tasks/mdCleanup/stateMachine.ts#L325-L354)
 
 ### 中文标题映射机制
 - **映射表定义**
@@ -242,8 +244,8 @@ IN_IMG --> IN_IMG : 多行图片继续
 
 **章节来源**
 - [src/tasks/mdCleanup/constants.ts:4-11](file://src/tasks/mdCleanup/constants.ts#L4-L11)
-- [src/tasks/mdCleanup/stateMachine.ts:58-71](file://src/tasks/mdCleanup/stateMachine.ts#L58-L71)
-- [src/tasks/mdCleanup/stateMachine.ts:124-138](file://src/tasks/mdCleanup/stateMachine.ts#L124-L138)
+- [src/tasks/mdCleanup/stateMachine.ts:57-70](file://src/tasks/mdCleanup/stateMachine.ts#L57-L70)
+- [src/tasks/mdCleanup/stateMachine.ts:113-127](file://src/tasks/mdCleanup/stateMachine.ts#L113-L127)
 
 ### 图像标签优化策略
 - **单行内联图片**
@@ -263,9 +265,9 @@ IN_IMG --> IN_IMG : 多行图片继续
 **章节来源**
 - [src/tasks/mdCleanup/helpers.ts:34-43](file://src/tasks/mdCleanup/helpers.ts#L34-L43)
 - [src/tasks/mdCleanup/helpers.ts:57-82](file://src/tasks/mdCleanup/helpers.ts#L57-L82)
-- [src/tasks/mdCleanup/stateMachine.ts:226-280](file://src/tasks/mdCleanup/stateMachine.ts#L226-L280)
-- [src/tasks/mdCleanup/stateMachine.ts:143-166](file://src/tasks/mdCleanup/stateMachine.ts#L143-L166)
-- [src/tasks/mdCleanup/constants.ts:35-42](file://src/tasks/mdCleanup/constants.ts#L35-L42)
+- [src/tasks/mdCleanup/stateMachine.ts:226-248](file://src/tasks/mdCleanup/stateMachine.ts#L226-L248)
+- [src/tasks/mdCleanup/stateMachine.ts:157-179](file://src/tasks/mdCleanup/stateMachine.ts#L157-L179)
+- [src/tasks/mdCleanup/constants.ts:43-50](file://src/tasks/mdCleanup/constants.ts#L43-L50)
 
 ### 表格块处理增强
 - **colgroup 块处理**
@@ -278,11 +280,14 @@ IN_IMG --> IN_IMG : 多行图片继续
   - 保持表格结构完整性的同时清理冗余样式
 - **表格块透传**
   - 将 table 及其子树原样输出，包括处理后的 colgroup 块
+- **全局正则替换**
+  - **新增** 处理跨行、非行首的 div 自定义样式标签块
+  - 提取标签块内部内容，移除标签本身
 
 **章节来源**
-- [src/tasks/mdCleanup/stateMachine.ts:171-191](file://src/tasks/mdCleanup/stateMachine.ts#L171-L191)
-- [src/tasks/mdCleanup/stateMachine.ts:196-201](file://src/tasks/mdCleanup/stateMachine.ts#L196-L201)
-- [src/tasks/mdCleanup/constants.ts:22-25](file://src/tasks/mdCleanup/constants.ts#L22-L25)
+- [src/tasks/mdCleanup/stateMachine.ts:157-179](file://src/tasks/mdCleanup/stateMachine.ts#L157-L179)
+- [src/tasks/mdCleanup/stateMachine.ts:181-189](file://src/tasks/mdCleanup/stateMachine.ts#L181-L189)
+- [src/tasks/mdCleanup/constants.ts:29-33](file://src/tasks/mdCleanup/constants.ts#L29-L33)
 
 ### 属性清理系统增强
 - **增强的清理规则**
@@ -299,8 +304,27 @@ IN_IMG --> IN_IMG : 多行图片继续
   - 保持标签结构完整性，仅移除属性
 
 **章节来源**
-- [src/tasks/mdCleanup/constants.ts:35-42](file://src/tasks/mdCleanup/constants.ts#L35-L42)
-- [src/tasks/mdCleanup/stateMachine.ts:359-362](file://src/tasks/mdCleanup/stateMachine.ts#L359-L362)
+- [src/tasks/mdCleanup/constants.ts:43-50](file://src/tasks/mdCleanup/constants.ts#L43-L50)
+- [src/tasks/mdCleanup/stateMachine.ts:345-348](file://src/tasks/mdCleanup/stateMachine.ts#L345-L348)
+
+### 全局正则替换机制
+**新增** 为处理跨行和非行首的 div 自定义样式标签，引入了全局正则替换机制：
+
+- **跨行 div 标签处理**
+  - 使用 RE_DIV_DATA_CUSTOM_STYLE_BLOCK 和 RE_DIV_CUSTOM_STYLE_BLOCK
+  - 匹配完整的 <div ...>...</div> 标签块，支持跨行和非行首位置
+  - 提取标签块内部内容，移除标签本身
+- **处理流程**
+  - 在状态机处理完成后执行
+  - 逐个替换匹配到的 div 标签块
+  - 保留标签内部的纯文本内容
+- **适用场景**
+  - 处理复杂的 HTML 结构，状态机难以直接处理的情况
+  - 确保所有 div 自定义样式标签都被正确清理
+
+**章节来源**
+- [src/tasks/mdCleanup/constants.ts:29-33](file://src/tasks/mdCleanup/constants.ts#L29-L33)
+- [src/tasks/mdCleanup/stateMachine.ts:325-343](file://src/tasks/mdCleanup/stateMachine.ts#L325-L343)
 
 ### 输出优化机制
 - **空行合并**
@@ -312,38 +336,41 @@ IN_IMG --> IN_IMG : 多行图片继续
   - 确保优化不影响清理逻辑的正确性
 
 **章节来源**
-- [src/tasks/mdCleanup/stateMachine.ts:364-366](file://src/tasks/mdCleanup/stateMachine.ts#L364-L366)
-- [src/tasks/mdCleanup/constants.ts:45](file://src/tasks/mdCleanup/constants.ts#L45)
+- [src/tasks/mdCleanup/stateMachine.ts:350-351](file://src/tasks/mdCleanup/stateMachine.ts#L350-L351)
+- [src/tasks/mdCleanup/constants.ts:53](file://src/tasks/mdCleanup/constants.ts#L53)
 
 ### 清理规则优先级与执行顺序
+**更新** 状态机重构后的规则顺序：
+
 - **规则顺序**
   1) 进入正文段落块：丢弃包装器，保留内部文本
   2) 进入标题块：提取中文序号映射为 ATX 前缀，收集标题文本
   3) 进入 figure 块：抽取 src 与 caption，输出 Markdown 图片
   4) 进入 table 块：原样透传，处理 colgroup 块
-  5) 进入 data-custom-style/div 块：处理自定义样式
-  6) 进入 custom-style/div 块：处理自定义样式
-  7) 其余行：先剥离引用块前缀，再替换内联图片，最后检测未闭合的 <img>
-  8) 最终属性清理：删除所有标签的 id、class、style、data-*、aria-* 属性
-  9) 输出优化：合并连续空行
+  5) 其余行：先剥离引用块前缀，再替换内联图片，最后检测未闭合的 <img>
+  6) **新增** 全局正则替换：处理跨行、非行首的 div 自定义样式标签
+  7) 最终属性清理：删除所有标签的 id、class、style、data-*、aria-* 属性
+  8) 输出优化：合并连续空行
 - **优先级说明**
-  - 块级规则（正文、标题、figure、table、自定义样式）优先于行内替换
+  - 块级规则（正文、标题、figure、table）优先于行内替换
   - 行内替换按"完整内联图片 → 未闭合跨行图片"顺序处理
   - 未知标题样式与无 src 图片会发出警告但不中断流程
+  - **新增** 全局正则替换在状态机处理完成后执行
   - 属性清理在所有处理完成后执行
   - 空行优化在属性清理之后执行
 
 **章节来源**
-- [src/tasks/mdCleanup/stateMachine.ts:52-109](file://src/tasks/mdCleanup/stateMachine.ts#L52-L109)
-- [src/tasks/mdCleanup/stateMachine.ts:171-191](file://src/tasks/mdCleanup/stateMachine.ts#L171-L191)
-- [src/tasks/mdCleanup/stateMachine.ts:226-280](file://src/tasks/mdCleanup/stateMachine.ts#L226-L280)
-- [src/tasks/mdCleanup/stateMachine.ts:346-368](file://src/tasks/mdCleanup/stateMachine.ts#L346-L368)
+- [src/tasks/mdCleanup/stateMachine.ts:51-98](file://src/tasks/mdCleanup/stateMachine.ts#L51-L98)
+- [src/tasks/mdCleanup/stateMachine.ts:157-179](file://src/tasks/mdCleanup/stateMachine.ts#L157-L179)
+- [src/tasks/mdCleanup/stateMachine.ts:226-248](file://src/tasks/mdCleanup/stateMachine.ts#L226-L248)
+- [src/tasks/mdCleanup/stateMachine.ts:325-354](file://src/tasks/mdCleanup/stateMachine.ts#L325-L354)
 
 ### 配置选项与可扩展点
 - **中文标题映射表**
   - 可通过修改 constants.ts 中的 HEADING_MAP 扩展更多中文序号到 ATX 级别的映射
 - **正则模式**
   - 可根据 pandoc 输出变化调整 constants.ts 中的匹配模式
+  - **新增** 可扩展全局正则替换模式来处理新的 div 样式标签
 - **属性清理规则**
   - 可通过修改 ATTR_CLEANUP_PATTERNS 扩展更多属性清理规则
 - **空行合并规则**
@@ -355,7 +382,7 @@ IN_IMG --> IN_IMG : 多行图片继续
 
 **章节来源**
 - [src/tasks/mdCleanup/constants.ts:4-11](file://src/tasks/mdCleanup/constants.ts#L4-L11)
-- [src/tasks/mdCleanup/constants.ts:35-46](file://src/tasks/mdCleanup/constants.ts#L35-L46)
+- [src/tasks/mdCleanup/constants.ts:43-54](file://src/tasks/mdCleanup/constants.ts#L43-L54)
 - [src/tasks/mdCleanup/task.ts:44-48](file://src/tasks/mdCleanup/task.ts#L44-L48)
 
 ### 性能优化策略
@@ -368,6 +395,7 @@ IN_IMG --> IN_IMG : 多行图片继续
 - **批量处理**
   - 逐行替换内联图片，减少多次遍历
   - 批量执行属性清理，减少正则替换次数
+  - **新增** 全局正则替换一次性处理所有跨行 div 标签
 - **模块化优势**
   - 按需导入，减少不必要的模块加载
   - 提高代码复用性和可维护性
@@ -376,7 +404,7 @@ IN_IMG --> IN_IMG : 多行图片继续
 
 **章节来源**
 - [src/tasks/mdCleanup/helpers.ts:34-43](file://src/tasks/mdCleanup/helpers.ts#L34-L43)
-- [src/tasks/mdCleanup/stateMachine.ts:359-368](file://src/tasks/mdCleanup/stateMachine.ts#L359-L368)
+- [src/tasks/mdCleanup/stateMachine.ts:345-354](file://src/tasks/mdCleanup/stateMachine.ts#L345-L354)
 
 ### 日志记录与错误处理
 - **日志系统集成**
@@ -425,7 +453,7 @@ HELP --> TYPES
 
 **图表来源**
 - [src/tasks/mdCleanup/index.ts:8-15](file://src/tasks/mdCleanup/index.ts#L8-L15)
-- [src/tasks/mdCleanup/stateMachine.ts:1-25](file://src/tasks/mdCleanup/stateMachine.ts#L1-L25)
+- [src/tasks/mdCleanup/stateMachine.ts:1-23](file://src/tasks/mdCleanup/stateMachine.ts#L1-L23)
 - [src/tasks/mdCleanup/task.ts:1-7](file://src/tasks/mdCleanup/task.ts#L1-L7)
 
 - **模块内聚**
@@ -454,6 +482,7 @@ HELP --> TYPES
   - 单次线性扫描 O(n)，每行最多一次正则匹配与替换
   - 模块化设计减少不必要的函数调用
   - 批量属性清理减少正则替换次数
+  - **新增** 全局正则替换一次性处理所有跨行 div 标签
 - **空间复杂度**
   - 输出数组累积，最坏 O(n)；状态机缓冲区较小，近似 O(1)
   - 按需导入模块，减少内存占用
@@ -462,11 +491,12 @@ HELP --> TYPES
 - **可靠性**
   - EOF 时对未闭合块进行兜底输出，避免数据丢失
   - 属性清理在所有处理完成后执行，确保完整性
+  - **新增** 全局正则替换确保所有 div 标签都被处理
   - 增强的错误处理机制提高系统稳定性
 
 **章节来源**
-- [src/tasks/mdCleanup/stateMachine.ts:359-368](file://src/tasks/mdCleanup/stateMachine.ts#L359-L368)
-- [src/tasks/mdCleanup/stateMachine.ts:320-341](file://src/tasks/mdCleanup/stateMachine.ts#L320-L341)
+- [src/tasks/mdCleanup/stateMachine.ts:345-354](file://src/tasks/mdCleanup/stateMachine.ts#L345-L354)
+- [src/tasks/mdCleanup/stateMachine.ts:286-307](file://src/tasks/mdCleanup/stateMachine.ts#L286-L307)
 
 ## 故障排查指南
 - **无法读取源文件**
@@ -490,6 +520,10 @@ HELP --> TYPES
 - **属性清理不彻底**
   - 现象：HTML 标签仍包含 data-* 或 aria-* 属性
   - 处理：检查 ATTR_CLEANUP_PATTERNS 配置，确认正则表达式正确性
+- **div 标签未清理**
+  - **新增** 现象：div 自定义样式标签仍然存在
+  - 处理：检查全局正则替换模式是否正确匹配目标标签
+  - 确认标签是否为跨行或非行首格式
 - **文件写入失败**
   - 现象：清理完成后无法写入输出文件
   - 处理：检查输出目录权限，确认磁盘空间充足
@@ -499,42 +533,48 @@ HELP --> TYPES
 
 **章节来源**
 - [src/tasks/mdCleanup/task.ts:25-35](file://src/tasks/mdCleanup/task.ts#L25-L35)
-- [src/tasks/mdCleanup/stateMachine.ts:157-162](file://src/tasks/mdCleanup/stateMachine.ts#L157-L162)
-- [src/tasks/mdCleanup/stateMachine.ts:251-258](file://src/tasks/mdCleanup/stateMachine.ts#L251-L258)
-- [src/tasks/mdCleanup/stateMachine.ts:178-182](file://src/tasks/mdCleanup/stateMachine.ts#L178-L182)
+- [src/tasks/mdCleanup/stateMachine.ts:147-152](file://src/tasks/mdCleanup/stateMachine.ts#L147-L152)
+- [src/tasks/mdCleanup/stateMachine.ts:237-245](file://src/tasks/mdCleanup/stateMachine.ts#L237-L245)
+- [src/tasks/mdCleanup/stateMachine.ts:181-189](file://src/tasks/mdCleanup/stateMachine.ts#L181-L189)
 
 ## 结论
 增强后的 mdCleanup 模块通过模块化架构、清晰的状态机实现和功能增强，在保持原有功能的基础上显著提升了代码的可维护性和可测试性。模块化的六个专门文件各司其职，constants.ts 提供稳定的配置，helpers.ts 提供实用的工具函数，stateMachine.ts 实现核心清理逻辑，task.ts 提供完整的任务封装，types.ts 确保类型安全。
 
-新架构支持多行图片处理机制，支持跨行闭合的图片标签，实现了完整的属性清理功能，新增了 colgroup 表格处理支持，改进了输出优化和错误处理机制。其纯函数设计便于测试与维护，结合 warn 回调和完整的日志系统提供了良好的可观测性。
+**更新** 状态机重构后，移除了专门的自定义样式块状态处理，引入了全局正则替换机制，简化了状态机结构，提升了处理复杂 HTML 结构的能力。新架构支持多行图片处理机制，支持跨行闭合的图片标签，实现了完整的属性清理功能，新增了 colgroup 表格处理支持，改进了输出优化和错误处理机制。
+
+其纯函数设计便于测试与维护，结合 warn 回调和完整的日志系统提供了良好的可观测性。
 
 增强的功能包括：
 - colgroup 表格块处理，支持复杂的表格布局定义
 - 更全面的属性清理，包括 data-* 和 aria-* 属性
 - 输出优化，自动合并连续空行
 - 改进的错误处理和日志记录
+- **新增** 全局正则替换机制，处理跨行和非行首的 div 自定义样式标签
 
 建议在后续版本中进一步扩展配置选项，支持更多自定义映射表和过滤规则，以适配更多 pandoc 输出风格。
 
 ## 附录
 - **设计文档要点**
-  - 规则覆盖：正文段落、标题、figure、table、内联图片、自定义样式、colgroup
+  - 规则覆盖：正文段落、标题、figure、table、内联图片、colgroup
   - 正确性性质：内容顺序不变、幂等性、无包装器标签残留
   - 属性清理：删除所有标签的 id、class、style、data-*、aria-* 属性
   - 输出优化：合并连续空行，最多保留两个空行
+  - **新增** 全局正则替换：处理跨行 div 自定义样式标签
 - **实施计划**
   - 扩展上下文类型、实现 cleanMarkdown、注册任务、集成测试
   - 模块化重构已完成，包含所有设计要求的功能
+  - **新增** 全局正则替换机制已集成到清理流程中
 - **当前实现状态**
   - 模块已完全重构为模块化架构
   - 集成了完整的日志记录和错误处理系统
   - 通过了所有基本功能测试
   - 新增了 colgroup 处理和属性清理增强功能
+  - **新增** 全局正则替换机制已通过测试
 
 **章节来源**
 - [src/tasks/mdCleanup/index.ts:1-16](file://src/tasks/mdCleanup/index.ts#L1-L16)
-- [src/tasks/mdCleanup/constants.ts:1-46](file://src/tasks/mdCleanup/constants.ts#L1-L46)
+- [src/tasks/mdCleanup/constants.ts:1-54](file://src/tasks/mdCleanup/constants.ts#L1-L54)
 - [src/tasks/mdCleanup/helpers.ts:1-82](file://src/tasks/mdCleanup/helpers.ts#L1-L82)
-- [src/tasks/mdCleanup/stateMachine.ts:1-369](file://src/tasks/mdCleanup/stateMachine.ts#L1-L369)
+- [src/tasks/mdCleanup/stateMachine.ts:1-355](file://src/tasks/mdCleanup/stateMachine.ts#L1-L355)
 - [src/tasks/mdCleanup/task.ts:1-72](file://src/tasks/mdCleanup/task.ts#L1-L72)
-- [src/tasks/mdCleanup/types.ts:1-51](file://src/tasks/mdCleanup/types.ts#L1-L51)
+- [src/tasks/mdCleanup/types.ts:1-49](file://src/tasks/mdCleanup/types.ts#L1-L49)
