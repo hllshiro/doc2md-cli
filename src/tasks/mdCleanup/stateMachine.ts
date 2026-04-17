@@ -15,6 +15,9 @@ import {
   RE_IMG_SRC,
   RE_CAPTION_TEXT,
   RE_IMG_CLOSE,
+  RE_INLINE_DATA_CUSTOM_STYLE,
+  RE_INLINE_CUSTOM_STYLE,
+  RE_INLINE_DIV_CLOSE,
 } from './constants.js'
 import { srcToAlt, extractImgTrailing, processLineContent } from './helpers.js'
 import { State, type CleanContext, type WarnFn } from './types.js'
@@ -165,6 +168,10 @@ function handleFigure(line: string, ctx: CleanContext, warn: WarnFn): State {
  * IN_TABLE 状态处理器
  */
 function handleTable(line: string, ctx: CleanContext, _warn: WarnFn): State {
+  // 去除行内的 div 自定义样式标签
+  line = line.replace(RE_INLINE_DATA_CUSTOM_STYLE, '')
+  line = line.replace(RE_INLINE_CUSTOM_STYLE, '')
+  line = line.replace(RE_INLINE_DIV_CLOSE, '')
   ctx.tableLines.push(line)
   if (RE_TABLE_CLOSE.test(line)) {
     for (const tl of ctx.tableLines) ctx.out.push(tl)

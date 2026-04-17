@@ -19,6 +19,10 @@ export const RE_DATA_CUSTOM_STYLE_OPEN = /^<div\s+data-custom-style="[^"]*">$/
 export const RE_DATA_CUSTOM_STYLE_CLOSE = /^<\/div>$/
 export const RE_CUSTOM_STYLE_OPEN = /^<div\s+custom-style="[^"]*">$/
 export const RE_CUSTOM_STYLE_CLOSE = /^<\/div>$/
+// 行内 div 标签的正则（用于 IN_TABLE 状态）
+export const RE_INLINE_DATA_CUSTOM_STYLE = /<div\s+data-custom-style="[^"]*">/g
+export const RE_INLINE_CUSTOM_STYLE = /<div\s+custom-style="[^"]*">/g
+export const RE_INLINE_DIV_CLOSE = /<\/div>/g
 
 export const RE_FIGURE_OPEN = /^<figure\b/
 export const RE_FIGURE_CLOSE = /^<\/figure>$/
