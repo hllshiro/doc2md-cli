@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/bundle.cjs",
   "scripts": {
-    "dev": "pnpm build:net && tsx src/main.ts",
-    "build": "pnpm build:net && node scripts/build.mjs",
+    "dev": "tsx src/main.ts",
+    "build": "node scripts/build.mjs",
     "build:net": "dotnet build module/MetafileConverter/MetafileConverter/MetafileConverter.csproj -c Release",
     "copy:net": "node scripts/copy-net.mjs",
     "release": "pnpm build && node scripts/release.mjs",
